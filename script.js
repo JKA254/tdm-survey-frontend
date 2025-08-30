@@ -8,9 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - point to your Synology NAS
+    // GitHub Pages - point to your Synology NAS via Reverse Proxy
     if (window.location.hostname.includes('github.io')) {
-        return 'http://192.168.1.147:8080/api'; // HTTP API - requires CORS
+        return 'https://tdmbackup.synology.me/api'; // HTTPS via Reverse Proxy
     }
     
     // Other development environments
