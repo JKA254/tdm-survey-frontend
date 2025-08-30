@@ -1226,20 +1226,40 @@ function refreshData() {
 // Initialize application
 async function initializeApp() {
     console.log('🚀 Starting Land Parcel Management System...');
+    
+    // Check authentication first
+    const selectedOrg = localStorage.getItem('selectedOrganization');
+    const recorderName = localStorage.getItem('recorderName');
+    const loginTime = localStorage.getItem('loginTime');
+    
+    if (!selectedOrg || !recorderName || !loginTime) {
+        console.log('🔒 No authentication found, redirecting to login...');
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    // Check if session is still valid (24 hours)
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    if (Date.now() - parseInt(loginTime) > twentyFourHours) {
+        console.log('⏰ Session expired, redirecting to login...');
+        localStorage.clear();
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    console.log('✅ Authentication valid, continuing...');
     showLoading(true);
     
     try {
+        // Update user info display
+        updateUserInfo(selectedOrg, recorderName);
+        
         // Load organizations first
         await loadOrganizations();
         
-        // Set default organization (first one available or default)
-        if (organizations.length > 0) {
-            selectedOrganization = organizations[0].org_name;
-            selectOrganization(selectedOrganization);
-        } else {
-            selectedOrganization = 'อบต.ไชยคราม';
-            selectOrganization('all');
-        }
+        // Set organization from localStorage
+        selectedOrganization = selectedOrg;
+        selectOrganization(selectedOrganization);
         
         console.log('✅ Application initialized successfully');
         showLoading(false);
@@ -1247,8 +1267,8 @@ async function initializeApp() {
         console.error('❌ Error initializing app:', error);
         showLoading(false);
         // Continue with basic functionality
-        selectedOrganization = 'อบต.ไชยคราม';
-        selectOrganization('all');
+        selectedOrganization = selectedOrg;
+        selectOrganization(selectedOrganization);
     }
 }
 
