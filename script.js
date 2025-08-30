@@ -10,7 +10,7 @@ const API_URL = (() => {
     
     // GitHub Pages - point to your Synology NAS
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me/api'; // Synology NAS API base URL
+        return 'http://192.168.1.147:8080/api'; // Synology NAS API (working endpoint)
     }
     
     // Other development environments
@@ -167,7 +167,7 @@ async function loadParcels() {
     try {
         console.log('🔄 Loading parcels for organization:', selectedOrganization);
         const orgParam = selectedOrganization === 'all' ? '' : `?org=${encodeURIComponent(selectedOrganization)}`;
-        const fullUrl = `${API_URL}/land_parcels${orgParam}`;
+        const fullUrl = `${API_URL}/parcels${orgParam}`;
         console.log('📡 Fetching from:', fullUrl);
         
         const response = await fetch(fullUrl);
@@ -1478,7 +1478,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchTimeout = setTimeout(async () => {
             try {
                 const orgParam = selectedOrganization === 'all' ? 'all' : selectedOrganization;
-                const searchUrl = `${API_URL}/search-land_parcels?q=${encodeURIComponent(query)}&org=${encodeURIComponent(orgParam)}`;
+                const searchUrl = `${API_URL}/search-parcels?q=${encodeURIComponent(query)}&org=${encodeURIComponent(orgParam)}`;
                 
                 console.log('🔍 Search URL:', searchUrl); // Debug log
                 
