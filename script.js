@@ -8,9 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - point to your Synology NAS via Docker API
+    // GitHub Pages - point to your Synology NAS via nginx reverse proxy
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me:8080'; // Direct to Docker container
+        return 'https://tdmbackup.synology.me'; // HTTPS via nginx to HTTP Docker
     }
     
     // Other development environments
