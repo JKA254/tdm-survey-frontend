@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทดสอบ API ฐานข้อมูล</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .data { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🧪 ทดสอบการเชื่อมต่อฐานข้อมูล TDM Survey</h1>
+    
+    <button class="btn-primary" onclick="testAllEndpoints()">ทดสอบทุก API Endpoints</button>
+    <button class="btn-success" onclick="testDirectAPI()">ทดสอบ API โดยตรง</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        async function testEndpoint(url, name) {
+            try {
+                addResult(`🔄 กำลังทดสอบ ${name}: ${url}`, 'warning');
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ ${name} สำเร็จ! พบข้อมูล ${data.length} รายการ`, 'success');
+                    
+                    // Show first 3 records
+                    if (data.length > 0) {
+                        const sample = data.slice(0, 3).map(item => ({
+                            แปลงที่ดิน: item.parcel_cod,
+                            เจ้าของ: item.owner_name,
+                            องค์กร: item.organization_name,
+                            พิกัด: item.coordinates
+                        }));
+                        
+                        const dataDiv = document.createElement('div');
+                        dataDiv.className = 'data';
+                        dataDiv.innerHTML = `<strong>ตัวอย่างข้อมูล ${name}:</strong><pre>${JSON.stringify(sample, null, 2)}</pre>`;
+                        document.getElementById('results').appendChild(dataDiv);
+                    }
+                    
+                    return { success: true, count: data.length, data: data };
+                } else {
+                    addResult(`❌ ${name} ล้มเหลว: HTTP ${response.status} ${response.statusText}`, 'error');
+                    return { success: false, error: `HTTP ${response.status}` };
+                }
+            } catch (error) {
+                addResult(`❌ ${name} ข้อผิดพลาด: ${error.message}`, 'error');
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testAllEndpoints() {
+            document.getElementById('results').innerHTML = '';
+            addResult('🚀 เริ่มทดสอบ API Endpoints ทั้งหมด...', 'warning');
+            
+            const endpoints = [
+                { url: 'https://tdmbackup.synology.me/api/land_parcels', name: 'HTTPS API (nginx)' },
+                { url: 'http://tdmbackup.synology.me:8080/api/land_parcels', name: 'HTTP API (Docker โดยตรง)' },
+                { url: 'https://tdmbackup.synology.me/land_parcels', name: 'HTTPS Direct (nginx)' },
+                { url: 'http://tdmbackup.synology.me:8080/land_parcels', name: 'HTTP Direct (Docker)' }
+            ];
+            
+            for (const endpoint of endpoints) {
+                await testEndpoint(endpoint.url, endpoint.name);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between tests
+            }
+            
+            addResult('🏁 การทดสอบเสร็จสิ้น', 'success');
+        }
+
+        async function testDirectAPI() {
+            document.getElementById('results').innerHTML = '';
+            addResult('🎯 ทดสอบ API โดยตรงที่ทราบว่าทำงานได้...', 'warning');
+            
+            const result = await testEndpoint('http://tdmbackup.synology.me:8080/api/land_parcels', 'API ฐานข้อมูลจริง');
+            
+            if (result.success) {
+                addResult(`🎉 พบข้อมูลจริงในฐานข้อมูล ${result.count} รายการ!`, 'success');
+                
+                // Show organizations
+                const orgs = [...new Set(result.data.map(item => item.organization_name))];
+                addResult(`📊 องค์กรในฐานข้อมูล: ${orgs.join(', ')}`, 'success');
+                
+                // Show latest entries
+                const latest = result.data.slice(0, 5);
+                const dataDiv = document.createElement('div');
+                dataDiv.className = 'data';
+                dataDiv.innerHTML = `<strong>ข้อมูลล่าสุด 5 รายการ:</strong><pre>${JSON.stringify(latest.map(item => ({
+                    รหัสแปลง: item.parcel_cod,
+                    เจ้าของ: item.owner_name,
+                    องค์กร: item.organization_name,
+                    เนื้อที่: item.ryw,
+                    ค่าประเมิน: item.assessed_value,
+                    วันที่บันทึก: new Date(item.created_at).toLocaleDateString('th-TH')
+                })), null, 2)}</pre>`;
+                document.getElementById('results').appendChild(dataDiv);
+            }
+        }
+
+        // Auto-test on page load
+        window.onload = () => {
+            addResult('📱 หน้าทดสอบ API พร้อมใช้งาน', 'success');
+            addResult('💡 คลิกปุ่มเพื่อทดสอบการเชื่อมต่อฐานข้อมูล', 'warning');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการข้อมูลที่ดิน - เลือกองค์กร</title>
+    
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ff7f00">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="TDM จัดการที่ดิน">
+    <link rel="apple-touch-icon" href="/icons/tdm-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/tdm-icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/tdm-icon-72x72.png">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #ff69b4, #ff1493, #e91e63);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            width: 100%;
+            max-width: 500px;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #ff69b4, #e91e63);
+            color: white;
+            text-align: center;
+            padding: 40px 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 50%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .login-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-header p {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-body {
+            padding: 40px 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            border-color: #ff69b4;
+            outline: none;
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .form-group select:hover,
+        .form-group input:hover {
+            border-color: #ff8fc7;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #ff69b4, #e91e63);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, #e91e63, #c2185b);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 105, 180, 0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .add-org-section {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px dashed #e1e5e9;
+        }
+
+        .add-org-btn {
+            background: linear-gradient(135deg, #32cd32, #228b22);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(50, 205, 50, 0.3);
+        }
+
+        .add-org-btn:hover {
+            background: linear-gradient(135deg, #228b22, #006400);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(50, 205, 50, 0.4);
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .required {
+            color: #ff69b4;
+            font-weight: bold;
+        }
+
+        .info-text {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #ff69b4;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .memory-info {
+            background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ff69b4;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+
+        .memory-info i {
+            color: #ff69b4;
+            margin-right: 5px;
+        }
+
+        .datetime-display {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #495057;
+            text-align: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .datetime-display:hover {
+            border-color: #ff69b4;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 0 10px rgba(255, 105, 180, 0.1);
+        }
+
+        .datetime-display i {
+            color: #ff69b4;
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .login-container {
+                margin: 10px;
+            }
+            
+            .login-header {
+                padding: 30px 20px;
+            }
+            
+            .login-header h1 {
+                font-size: 20px;
+            }
+            
+            .login-body {
+                padding: 30px 20px;
+            }
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalSlideIn 0.4s ease-out;
+            overflow: hidden;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px) scale(0.95);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #ff69b4, #e91e63);
+            color: white;
+            padding: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+
+        .modal-header .close-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .modal-header .close-btn:hover {
+            background-color: rgba(255,255,255,0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 30px;
+            background: linear-gradient(145deg, #fafafa, #ffffff);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: none;
+            min-width: 120px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ff69b4, #e91e63);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #e91e63, #c2185b);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 105, 180, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #5a6268, #495057);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1><i class="fas fa-map-marked-alt"></i> ระบบจัดการข้อมูลที่ดิน</h1>
+            <p>เลือกองค์การบริหารส่วนตำบลและกรอกข้อมูลผู้ใช้งาน</p>
+        </div>
+        
+        <div class="login-body">
+            <div class="info-text">
+                <i class="fas fa-info-circle"></i> 
+                กรุณาเลือกองค์กรและกรอกชื่อผู้บันทึกก่อนเข้าใช้งานระบบ
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="organizationSelect">
+                        <i class="fas fa-building"></i> 
+                        เลือกองค์การบริหารส่วนตำบล <span class="required">*</span>
+                    </label>
+                    <select id="organizationSelect" required>
+                        <option value="">กรุณาเลือกองค์กร...</option>
+                    </select>
+                    <div id="loadingOrgs" class="loading" style="display: none;">
+                        <i class="fas fa-spinner"></i> กำลังโหลดรายการองค์กร...
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="recorderName">
+                        <i class="fas fa-user"></i> 
+                        ชื่อผู้บันทึกข้อมูล <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="recorderName" 
+                        placeholder="เช่น นางสาวสมหวัง ใจดี" 
+                        maxlength="100"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-clock"></i> 
+                        วันเวลาปัจจุบัน
+                    </label>
+                    <div id="currentDateTime" class="datetime-display">
+                        กำลังโหลด...
+                    </div>
+                </div>
+
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> 
+                    เข้าสู่ระบบ
+                </button>
+            </form>
+
+            <div class="memory-info">
+                <i class="fas fa-save"></i> 
+                ระบบจะจำข้อมูลองค์กรและชื่อผู้บันทึกไว้สำหรับการใช้งานครั้งถัดไป
+                <br>
+                <button type="button" onclick="clearSavedData()" style="
+                    background: transparent;
+                    border: 1px solid #dc3545;
+                    color: #dc3545;
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    font-size: 12px;
+                    margin-top: 8px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                " onmouseover="this.style.background='#dc3545'; this.style.color='white';" 
+                   onmouseout="this.style.background='transparent'; this.style.color='#dc3545';">
+                    <i class="fas fa-trash-alt"></i> ล้างข้อมูลที่จำไว้
+                </button>
+            </div>
+
+            <div class="add-org-section">
+                <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+                    ไม่พบองค์กรของคุณ?
+                </p>
+                <button type="button" class="add-org-btn" onclick="showAddOrgModal()">
+                    <i class="fas fa-plus"></i> เพิ่มองค์กรใหม่
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Organization Modal -->
+    <div id="addOrgModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>เพิ่มองค์การบริหารส่วนตำบลใหม่</h3>
+                <button class="close-btn" onclick="closeAddOrgModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newOrgName">ชื่อ อบต. <span class="required">*</span></label>
+                    <input type="text" id="newOrgName" placeholder="เช่น อบต.ไชยคราม" maxlength="100" required>
+                </div>
+                <div class="form-group">
+                    <label for="newOrgCode">รหัส อบต. (ถ้ามี)</label>
+                    <input type="text" id="newOrgCode" placeholder="เช่น CHK001" maxlength="20">
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeAddOrgModal()" class="btn btn-secondary">ยกเลิก</button>
+                    <button type="button" onclick="addNewOrganization()" class="btn btn-primary">เพิ่ม</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let organizations = [];
+
+        // Load organizations on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrganizations();
+            loadSavedData();
+            startDateTimeUpdate();
+            
+            // Form submission
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                login();
+            });
+        });
+
+        // Load saved data from localStorage
+        function loadSavedData() {
+            // Load saved recorder name if exists
+            const savedRecorder = localStorage.getItem('recorderName');
+            if (savedRecorder) {
+                document.getElementById('recorderName').value = savedRecorder;
+            }
+
+            // Load saved organization if exists
+            const savedOrg = localStorage.getItem('selectedOrganization');
+            if (savedOrg) {
+                // Set the organization after organizations are loaded
+                setTimeout(() => {
+                    const orgSelect = document.getElementById('organizationSelect');
+                    for (let option of orgSelect.options) {
+                        if (option.value === savedOrg) {
+                            orgSelect.value = savedOrg;
+                            // Add visual indication that this is remembered
+                            orgSelect.style.borderColor = '#28a745';
+                            orgSelect.style.backgroundColor = '#f8fff9';
+                            break;
+                        }
+                    }
+                }, 500);
+            }
+
+            // Add visual indication for remembered recorder name
+            const recorderInput = document.getElementById('recorderName');
+            if (savedRecorder) {
+                recorderInput.style.borderColor = '#28a745';
+                recorderInput.style.backgroundColor = '#f8fff9';
+                
+                // Add tooltip or placeholder update
+                recorderInput.title = 'ข้อมูลนี้ถูกจำไว้จากครั้งที่แล้ว';
+            }
+        }
+
+        // Update current date and time
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Format Thai date
+            const thaiMonths = [
+                'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+                'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+            ];
+            
+            const thaiDays = [
+                'อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'
+            ];
+            
+            const dayName = thaiDays[now.getDay()];
+            const day = now.getDate();
+            const month = thaiMonths[now.getMonth()];
+            const year = now.getFullYear() + 543; // Convert to Buddhist Era
+            
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            
+            const dateTimeString = `วัน${dayName} ที่ ${day} ${month} ${year}<br>เวลา ${hours}:${minutes}:${seconds} น.`;
+            
+            document.getElementById('currentDateTime').innerHTML = `
+                <i class="fas fa-calendar-alt"></i> ${dateTimeString}
+            `;
+        }
+
+        // Start real-time date/time updates
+        function startDateTimeUpdate() {
+            updateDateTime(); // Update immediately
+            setInterval(updateDateTime, 1000); // Update every second
+        }
+
+        // Clear saved data
+        function clearSavedData() {
+            if (confirm('คุณต้องการล้างข้อมูลที่จำไว้ทั้งหมดหรือไม่?')) {
+                localStorage.removeItem('selectedOrganization');
+                localStorage.removeItem('recorderName');
+                localStorage.removeItem('loginTime');
+                
+                // Reset form
+                document.getElementById('organizationSelect').value = '';
+                document.getElementById('recorderName').value = '';
+                
+                // Reset visual indicators
+                const orgSelect = document.getElementById('organizationSelect');
+                const recorderInput = document.getElementById('recorderName');
+                
+                orgSelect.style.borderColor = '#e1e5e9';
+                orgSelect.style.backgroundColor = 'white';
+                recorderInput.style.borderColor = '#e1e5e9';
+                recorderInput.style.backgroundColor = 'white';
+                recorderInput.title = '';
+                
+                alert('ล้างข้อมูลที่จำไว้เรียบร้อยแล้ว');
+            }
+        }
+
+        async function loadOrganizations() {
+            const loadingDiv = document.getElementById('loadingOrgs');
+            const orgSelect = document.getElementById('organizationSelect');
+            
+            try {
+                loadingDiv.style.display = 'block';
+                
+                const response = await fetch('http://localhost:3000/api/organizations');
+                const data = await response.json();
+                
+                orgSelect.innerHTML = '<option value="">กรุณาเลือกองค์กร...</option>';
+                
+                if (data && data.length > 0) {
+                    data.forEach(org => {
+                        const option = document.createElement('option');
+                        option.value = org.org_name;
+                        option.textContent = `${org.org_name} (${org.parcel_count} รายการ)`;
+                        orgSelect.appendChild(option);
+                    });
+                    organizations = data;
+                } else {
+                    const option = document.createElement('option');
+                    option.value = "";
+                    option.textContent = "ไม่พบข้อมูลองค์กร - กรุณาเพิ่มองค์กรใหม่";
+                    option.disabled = true;
+                    orgSelect.appendChild(option);
+                }
+            } catch (error) {
+                console.error('Error loading organizations:', error);
+                orgSelect.innerHTML = '<option value="">เกิดข้อผิดพลาดในการโหลดข้อมูล</option>';
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function login() {
+            const orgName = document.getElementById('organizationSelect').value;
+            const recorderName = document.getElementById('recorderName').value.trim();
+            
+            if (!orgName) {
+                alert('กรุณาเลือกองค์กร');
+                document.getElementById('organizationSelect').focus();
+                return;
+            }
+            
+            if (!recorderName) {
+                alert('กรุณากรอกชื่อผู้บันทึกข้อมูล');
+                document.getElementById('recorderName').focus();
+                return;
+            }
+            
+            // Save to localStorage for persistence
+            localStorage.setItem('selectedOrganization', orgName);
+            localStorage.setItem('recorderName', recorderName);
+            localStorage.setItem('loginTime', new Date().toISOString());
+            
+            // Show success message before redirect
+            const confirmMsg = `เข้าสู่ระบบสำเร็จ!\nองค์กร: ${orgName}\nผู้บันทึก: ${recorderName}\n\nระบบจะจำข้อมูลนี้ไว้สำหรับการใช้งานครั้งถัดไป`;
+            alert(confirmMsg);
+            
+            // Redirect to main page
+            window.location.href = 'index.html';
+        }
+
+        // Add Organization Modal Functions
+        function showAddOrgModal() {
+            document.getElementById('addOrgModal').style.display = 'block';
+            document.getElementById('newOrgName').value = '';
+            document.getElementById('newOrgCode').value = '';
+            document.getElementById('newOrgName').focus();
+        }
+
+        function closeAddOrgModal() {
+            document.getElementById('addOrgModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('addOrgModal');
+            if (event.target === modal) {
+                closeAddOrgModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeAddOrgModal();
+            }
+        });
+
+        async function addNewOrganization() {
+            const orgName = document.getElementById('newOrgName').value.trim();
+            const orgCode = document.getElementById('newOrgCode').value.trim();
+            
+            if (!orgName) {
+                alert('กรุณาใส่ชื่อองค์กร');
+                document.getElementById('newOrgName').focus();
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/organizations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        org_name: orgName,
+                        org_code: orgCode
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    closeAddOrgModal();
+                    alert('เพิ่มองค์กรใหม่เรียบร้อยแล้ว');
+                    await loadOrganizations();
+                    
+                    // Auto select the new organization
+                    document.getElementById('organizationSelect').value = orgName;
+                } else {
+                    if (response.status === 409) {
+                        alert('องค์กรนี้มีอยู่ในระบบแล้ว');
+                    } else {
+                        alert(data.error || 'เกิดข้อผิดพลาดในการเพิ่มองค์กร');
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding organization:', error);
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+            }
+        }
+    </script>
+    
+    <!-- PWA Scripts -->
+    <script src="pwa-installer.js"></script>
+</body>
+</html>

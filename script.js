@@ -5,12 +5,13 @@
 const API_URL = (() => {
     // Check if we're running on localhost
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:8080/api';
+        return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - point to your Synology NAS
+    // GitHub Pages - Try HTTPS first, fallback to demo data if Mixed Content blocked
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me/api'; // แทนที่ด้วย DDNS ของคุณ
+        // We'll try both HTTPS and HTTP, but expect Mixed Content issues
+        return 'https://tdmbackup.synology.me/api'; // Try HTTPS first
     }
     
     // Other development environments
@@ -31,6 +32,68 @@ let organizations = [];
 let currentParcel = null;
 let selectedOrganization = 'all';
 let isOffline = false;
+
+// Check if app is working offline
+function checkOfflineStatus() {
+    isOffline = !navigator.onLine;
+    return isOffline;
+}
+
+// Enhanced API call with offline support and Mixed Content warning
+async function apiCall(url, options = {}) {
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+        
+        if (response.ok) {
+            return response;
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('❌ API Error:', error.message);
+        
+        // Check if it's a Mixed Content error
+        if (error.message.includes('Mixed Content') || 
+            error.message.includes('HTTPS') ||
+            window.location.protocol === 'https:' && url.startsWith('http:')) {
+            
+            showMixedContentWarning();
+        }
+        
+        throw error;
+    }
+}
+
+// Show Mixed Content warning to user
+function showMixedContentWarning() {
+    const warning = document.createElement('div');
+    warning.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #ff4444;
+        color: white;
+        padding: 15px;
+        border-radius: 5px;
+        z-index: 9999;
+        max-width: 300px;
+        font-size: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    `;
+    warning.innerHTML = `
+        <strong>🔒 Mixed Content Blocked</strong><br>
+        กรุณาคลิกไอคอน "โล่" หรื้อ "ไม่ปลอดภัย" ข้างบาร์ URL<br>
+        แล้วเลือก "Load unsafe scripts" เพื่อใช้งานแอป
+        <button onclick="this.parentNode.remove()" style="float:right;background:none;border:none;color:white;cursor:pointer;font-size:18px;">×</button>
+    `;
+    document.body.appendChild(warning);
+}
 
 // Check if app is working offline
 function checkOfflineStatus() {
@@ -62,7 +125,15 @@ async function apiCall(url, options = {}) {
         
         return data;
     } catch (error) {
-        console.error('API call failed:', error);
+        console.error('❌ API Error:', error.message);
+        
+        // Check if it's a Mixed Content error
+        if (error.message.includes('Mixed Content') || 
+            error.message.includes('HTTPS') ||
+            (window.location.protocol === 'https:' && url.startsWith('http:'))) {
+            
+            showMixedContentWarning();
+        }
         
         // If it's a POST request and we're offline, the service worker will handle it
         if (options.method === 'POST' && !navigator.onLine) {
@@ -71,6 +142,7 @@ async function apiCall(url, options = {}) {
         
         throw error;
     }
+}
 }
 
 // Load organizations
@@ -167,47 +239,96 @@ async function loadParcels() {
     try {
         console.log('🔄 Loading parcels for organization:', selectedOrganization);
         const orgParam = selectedOrganization === 'all' ? '' : `?org=${encodeURIComponent(selectedOrganization)}`;
-        const fullUrl = `${API_URL}/parcels${orgParam}`;
-        console.log('📡 Fetching from:', fullUrl);
         
-        const response = await fetch(fullUrl);
-        console.log('📊 Response status:', response.status);
+        // Try multiple API endpoints for better reliability
+        const endpoints = [
+            `${API_URL}/land_parcels${orgParam}`,
+            `http://tdmbackup.synology.me:8080/api/land_parcels${orgParam}`, // Direct HTTP fallback
+            `https://tdmbackup.synology.me/api/land_parcels${orgParam}` // HTTPS fallback
+        ];
+        
+        let response = null;
+        let lastError = null;
+        
+        for (const endpoint of endpoints) {
+            try {
+                console.log('� Trying endpoint:', endpoint);
+                response = await fetch(endpoint, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Success with endpoint:', endpoint);
+                    parcels = await response.json();
+                    console.log('✅ Loaded parcels:', parcels.length);
+                    
+                    // Filter by organization if needed
+                    if (selectedOrganization !== 'all') {
+                        parcels = parcels.filter(p => p.organization_name === selectedOrganization);
+                        console.log('🔍 Filtered parcels:', parcels.length);
+                    }
+                    
+                    renderParcelList();
+                    updateParcelCount();
+                    return; // Success, exit function
+                }
+            } catch (error) {
+                console.warn(`❌ Failed endpoint ${endpoint}:`, error.message);
+                lastError = error;
+                continue; // Try next endpoint
+            }
+        }
+        
+        // If all endpoints failed, show real data from known working API
+        console.warn('⚠️ All API endpoints failed, trying direct data fetch...');
+        await loadRealDataFallback();
+        
+    } catch (error) {
+        console.error('❌ Critical error loading parcels:', error);
+        await loadRealDataFallback();
+    }
+}
+
+// Fallback function to load real data directly
+async function loadRealDataFallback() {
+    try {
+        // Use direct fetch without CORS restrictions if possible
+        const response = await fetch('http://tdmbackup.synology.me:8080/api/land_parcels', {
+            method: 'GET'
+        });
         
         if (response.ok) {
-            parcels = await response.json();
-            console.log('✅ Loaded parcels:', parcels.length);
-        } else {
-            console.warn('⚠️ API response not ok, status:', response.status);
-            const errorText = await response.text();
-            console.error('❌ Error response:', errorText);
+            const realData = await response.json();
+            console.log('✅ Loaded real fallback data:', realData.length);
             
-            // Show demo data with error message
-            parcels = [
-                { parcel_cod: '02A001', org_name: selectedOrganization === 'all' ? 'อบต.ไชยคราม' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' },
-                { parcel_cod: '02A002', org_name: selectedOrganization === 'all' ? 'อบต.ไชยคราม' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' },
-                { parcel_cod: '02B001', org_name: selectedOrganization === 'all' ? 'อบต.บางแก้ว' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' }
-            ];
+            // Filter by organization
+            if (selectedOrganization !== 'all') {
+                parcels = realData.filter(p => p.organization_name === selectedOrganization);
+            } else {
+                parcels = realData;
+            }
             
-            // Show error notification
-            showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล กำลังแสดงข้อมูลตัวอย่าง', 'warning');
+            renderParcelList();
+            updateParcelCount();
+            showNotification('✅ โหลดข้อมูลจากฐานข้อมูลสำเร็จ', 'success');
+            return;
         }
-        renderParcelList();
-        updateParcelCount();
     } catch (error) {
-        console.error('❌ Network error loading parcels:', error);
-        
-        // Show demo data with error message
-        parcels = [
-            { parcel_cod: '02A001', org_name: 'อบต.ไชยคราม', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
-            { parcel_cod: '02B001', org_name: 'อบต.บางแก้ว', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
-            { parcel_cod: '02C001', org_name: 'อบต.คลองขุด', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' }
-        ];
-        renderParcelList();
-        updateParcelCount();
-        
-        // Show error notification
-        showNotification('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังแสดงข้อมูลตัวอย่าง', 'error');
+        console.error('❌ Fallback also failed:', error);
     }
+    
+    // Final fallback - use demo data but mark it clearly
+    console.log('📝 Using demo data as final fallback');
+    parcels = [
+        { parcel_cod: '02A001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '47-0-0', coordinates: '9.2774653641324,99.6308034154171' },
+        { parcel_cod: '02B001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '43845', coordinates: '9.27538969077421,99.6326572522743' },
+        { parcel_cod: '02C001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '29233', coordinates: '9.27763149696953,99.6330194589285' }
+    ];
+    
+    renderParcelList();
+    updateParcelCount();
+    showNotification('⚠️ ใช้ข้อมูลตัวอย่าง - ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'warning');
 }
 
 // Update parcel count display
@@ -218,6 +339,159 @@ function updateParcelCount(count = null) {
         const orgText = selectedOrganization === 'all' ? 'ทุก อบต.' : selectedOrganization;
         parcelCountSpan.textContent = `รายการ: ${displayCount} (${orgText})`;
     }
+    
+    // Update dashboard statistics
+    updateDashboardStats();
+}
+
+// Update dashboard statistics
+function updateDashboardStats() {
+    const stats = calculateParcelStats();
+    updateStatsDisplay(stats);
+}
+
+// Calculate parcel statistics
+function calculateParcelStats() {
+    if (!parcels || parcels.length === 0) {
+        return {
+            total: 0,
+            totalValue: 0,
+            averageValue: 0,
+            byOrganization: {},
+            byLandType: {},
+            recentUpdates: 0
+        };
+    }
+    
+    const stats = {
+        total: parcels.length,
+        totalValue: 0,
+        byOrganization: {},
+        byLandType: {},
+        recentUpdates: 0
+    };
+    
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    parcels.forEach(parcel => {
+        // Count by organization
+        const org = parcel.org_name || parcel.organization_name || 'ไม่ระบุ';
+        stats.byOrganization[org] = (stats.byOrganization[org] || 0) + 1;
+        
+        // Count by land type
+        const landType = parcel.land_type || 'ไม่ระบุ';
+        stats.byLandType[landType] = (stats.byLandType[landType] || 0) + 1;
+        
+        // Calculate total value
+        if (parcel.assessed_value) {
+            stats.totalValue += parseFloat(parcel.assessed_value) || 0;
+        }
+        
+        // Count recent updates
+        if (parcel.timestamp) {
+            const updateDate = new Date(parcel.timestamp);
+            if (updateDate >= oneWeekAgo) {
+                stats.recentUpdates++;
+            }
+        }
+    });
+    
+    stats.averageValue = stats.total > 0 ? stats.totalValue / stats.total : 0;
+    
+    return stats;
+}
+
+// Update stats display in the UI
+function updateStatsDisplay(stats) {
+    // Update total count
+    const totalElement = document.getElementById('totalParcels');
+    if (totalElement) {
+        totalElement.textContent = stats.total.toLocaleString('th-TH');
+    }
+    
+    // Update total value
+    const valueElement = document.getElementById('totalValue');
+    if (valueElement) {
+        valueElement.textContent = stats.totalValue.toLocaleString('th-TH', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }) + ' บาท';
+    }
+    
+    // Update average value
+    const avgElement = document.getElementById('averageValue');
+    if (avgElement) {
+        avgElement.textContent = stats.averageValue.toLocaleString('th-TH', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }) + ' บาท';
+    }
+    
+    // Update recent updates count
+    const recentElement = document.getElementById('recentUpdates');
+    if (recentElement) {
+        recentElement.textContent = stats.recentUpdates + ' รายการ';
+    }
+}
+
+// Render charts for dashboard
+function renderCharts() {
+    const stats = calculateParcelStats();
+    renderOrganizationChart(stats.byOrganization);
+    renderLandTypeChart(stats.byLandType);
+}
+
+// Render organization chart
+function renderOrganizationChart(orgData) {
+    const container = document.getElementById('orgChart');
+    if (!container || !orgData) return;
+    
+    container.innerHTML = '';
+    
+    const maxValue = Math.max(...Object.values(orgData));
+    
+    Object.entries(orgData).forEach(([org, count]) => {
+        const percentage = maxValue > 0 ? (count / maxValue) * 100 : 0;
+        
+        const chartBar = document.createElement('div');
+        chartBar.className = 'chart-bar';
+        chartBar.innerHTML = `
+            <div class="chart-label">${org.replace('อบต.', '')}</div>
+            <div class="chart-progress">
+                <div class="chart-fill" style="width: ${percentage}%"></div>
+            </div>
+            <div class="chart-value">${count}</div>
+        `;
+        
+        container.appendChild(chartBar);
+    });
+}
+
+// Render land type chart
+function renderLandTypeChart(typeData) {
+    const container = document.getElementById('typeChart');
+    if (!container || !typeData) return;
+    
+    container.innerHTML = '';
+    
+    const maxValue = Math.max(...Object.values(typeData));
+    
+    Object.entries(typeData).forEach(([type, count]) => {
+        const percentage = maxValue > 0 ? (count / maxValue) * 100 : 0;
+        
+        const chartBar = document.createElement('div');
+        chartBar.className = 'chart-bar';
+        chartBar.innerHTML = `
+            <div class="chart-label">${type}</div>
+            <div class="chart-progress">
+                <div class="chart-fill" style="width: ${percentage}%"></div>
+            </div>
+            <div class="chart-value">${count}</div>
+        `;
+        
+        container.appendChild(chartBar);
+    });
 }
 
 // Render parcel list
@@ -370,7 +644,16 @@ function setActiveNav(clickedItem) {
     });
     clickedItem.classList.add('active');
 }
+
 // View switching
+function showDashboard() {
+    setActiveView('dashboardView');
+    loadParcels().then(() => {
+        updateDashboardStats();
+        renderCharts();
+    });
+}
+
 function showParcelList() {
     setActiveView('parcelListView');
     loadParcels();
@@ -400,7 +683,7 @@ async function editParcel(code) {
     try {
         console.log('📝 Editing parcel with code:', code);
         showLoading(true);
-        const response = await fetch(`${API_URL}/parcel/${code}`);
+        const response = await fetch(`${API_URL}/land_parcel/${code}`);
         console.log('📡 API response status:', response.status);
         
         if (response.ok) {
@@ -993,20 +1276,40 @@ function refreshData() {
 // Initialize application
 async function initializeApp() {
     console.log('🚀 Starting Land Parcel Management System...');
+    
+    // Check authentication first
+    const selectedOrg = localStorage.getItem('selectedOrganization');
+    const recorderName = localStorage.getItem('recorderName');
+    const loginTime = localStorage.getItem('loginTime');
+    
+    if (!selectedOrg || !recorderName || !loginTime) {
+        console.log('🔒 No authentication found, redirecting to login...');
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    // Check if session is still valid (24 hours)
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    if (Date.now() - parseInt(loginTime) > twentyFourHours) {
+        console.log('⏰ Session expired, redirecting to login...');
+        localStorage.clear();
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    console.log('✅ Authentication valid, continuing...');
     showLoading(true);
     
     try {
+        // Update user info display
+        updateUserInfo(selectedOrg, recorderName);
+        
         // Load organizations first
         await loadOrganizations();
         
-        // Set default organization (first one available or default)
-        if (organizations.length > 0) {
-            selectedOrganization = organizations[0].org_name;
-            selectOrganization(selectedOrganization);
-        } else {
-            selectedOrganization = 'อบต.ไชยคราม';
-            selectOrganization('all');
-        }
+        // Set organization from localStorage
+        selectedOrganization = selectedOrg;
+        selectOrganization(selectedOrganization);
         
         console.log('✅ Application initialized successfully');
         showLoading(false);
@@ -1014,8 +1317,8 @@ async function initializeApp() {
         console.error('❌ Error initializing app:', error);
         showLoading(false);
         // Continue with basic functionality
-        selectedOrganization = 'อบต.ไชยคราม';
-        selectOrganization('all');
+        selectedOrganization = selectedOrg;
+        selectOrganization(selectedOrganization);
     }
 }
 
@@ -1167,7 +1470,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             try {
-                const result = await apiCall(`${API_URL}/parcel`, {
+                const result = await apiCall(`${API_URL}/land_parcel`, {
                     method: 'POST',
                     body: JSON.stringify(formData)
                 });
@@ -1438,3 +1741,48 @@ document.addEventListener('DOMContentLoaded', function() {
         timestampInput.value = new Date().toISOString().slice(0, 16);
     }
 });
+
+// Initialize application
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 TDM Survey System Initializing...');
+    
+    // Initialize UI components
+    initializePWA();
+    loadOrganizations();
+    
+    // Set default view to dashboard
+    showDashboard();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    console.log('✅ System initialized successfully');
+});
+
+// Setup event listeners
+function setupEventListeners() {
+    // Online/offline detection
+    window.addEventListener('online', () => {
+        updateConnectionStatus(true);
+        showNotification('🟢 กลับมาออนไลน์แล้ว', 'success');
+    });
+    
+    window.addEventListener('offline', () => {
+        updateConnectionStatus(false);
+        showNotification('🔴 ขาดการเชื่อมต่อ ทำงานแบบออฟไลน์', 'warning');
+    });
+}
+
+// Update connection status indicator
+function updateConnectionStatus(isOnline) {
+    const statusElement = document.getElementById('connection-status');
+    if (statusElement) {
+        if (isOnline) {
+            statusElement.textContent = '🟢 ออนไลน์';
+            statusElement.className = 'connection-status online';
+        } else {
+            statusElement.textContent = '🔴 ออฟไลน์';
+            statusElement.className = 'connection-status offline';
+        }
+    }
+}
