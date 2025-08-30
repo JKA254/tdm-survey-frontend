@@ -10,7 +10,7 @@ const API_URL = (() => {
     
     // GitHub Pages - point to your Synology NAS
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me/api'; // Synology NAS API via reverse proxy
+        return 'http://192.168.1.147:8080/api'; // HTTP API - requires CORS
     }
     
     // Other development environments
@@ -31,6 +31,68 @@ let organizations = [];
 let currentParcel = null;
 let selectedOrganization = 'all';
 let isOffline = false;
+
+// Check if app is working offline
+function checkOfflineStatus() {
+    isOffline = !navigator.onLine;
+    return isOffline;
+}
+
+// Enhanced API call with offline support and Mixed Content warning
+async function apiCall(url, options = {}) {
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+        
+        if (response.ok) {
+            return response;
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('❌ API Error:', error.message);
+        
+        // Check if it's a Mixed Content error
+        if (error.message.includes('Mixed Content') || 
+            error.message.includes('HTTPS') ||
+            window.location.protocol === 'https:' && url.startsWith('http:')) {
+            
+            showMixedContentWarning();
+        }
+        
+        throw error;
+    }
+}
+
+// Show Mixed Content warning to user
+function showMixedContentWarning() {
+    const warning = document.createElement('div');
+    warning.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #ff4444;
+        color: white;
+        padding: 15px;
+        border-radius: 5px;
+        z-index: 9999;
+        max-width: 300px;
+        font-size: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    `;
+    warning.innerHTML = `
+        <strong>🔒 Mixed Content Blocked</strong><br>
+        กรุณาคลิกไอคอน "โล่" หรื้อ "ไม่ปลอดภัย" ข้างบาร์ URL<br>
+        แล้วเลือก "Load unsafe scripts" เพื่อใช้งานแอป
+        <button onclick="this.parentNode.remove()" style="float:right;background:none;border:none;color:white;cursor:pointer;font-size:18px;">×</button>
+    `;
+    document.body.appendChild(warning);
+}
 
 // Check if app is working offline
 function checkOfflineStatus() {
@@ -62,7 +124,15 @@ async function apiCall(url, options = {}) {
         
         return data;
     } catch (error) {
-        console.error('API call failed:', error);
+        console.error('❌ API Error:', error.message);
+        
+        // Check if it's a Mixed Content error
+        if (error.message.includes('Mixed Content') || 
+            error.message.includes('HTTPS') ||
+            (window.location.protocol === 'https:' && url.startsWith('http:'))) {
+            
+            showMixedContentWarning();
+        }
         
         // If it's a POST request and we're offline, the service worker will handle it
         if (options.method === 'POST' && !navigator.onLine) {
@@ -71,6 +141,7 @@ async function apiCall(url, options = {}) {
         
         throw error;
     }
+}
 }
 
 // Load organizations
