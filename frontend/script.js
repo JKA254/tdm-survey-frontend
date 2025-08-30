@@ -8,9 +8,10 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - point to your Synology NAS
+    // GitHub Pages - Try HTTPS first, fallback to demo data if Mixed Content blocked
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.sg4.quickconnect.to:8080/api'; // Synology Docker port 8080
+        // We'll try both HTTPS and HTTP, but expect Mixed Content issues
+        return 'https://tdmbackup.synology.me/api'; // Try HTTPS first
     }
     
     // Other development environments
@@ -31,6 +32,68 @@ let organizations = [];
 let currentParcel = null;
 let selectedOrganization = 'all';
 let isOffline = false;
+
+// Check if app is working offline
+function checkOfflineStatus() {
+    isOffline = !navigator.onLine;
+    return isOffline;
+}
+
+// Enhanced API call with offline support and Mixed Content warning
+async function apiCall(url, options = {}) {
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+        
+        if (response.ok) {
+            return response;
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('❌ API Error:', error.message);
+        
+        // Check if it's a Mixed Content error
+        if (error.message.includes('Mixed Content') || 
+            error.message.includes('HTTPS') ||
+            window.location.protocol === 'https:' && url.startsWith('http:')) {
+            
+            showMixedContentWarning();
+        }
+        
+        throw error;
+    }
+}
+
+// Show Mixed Content warning to user
+function showMixedContentWarning() {
+    const warning = document.createElement('div');
+    warning.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #ff4444;
+        color: white;
+        padding: 15px;
+        border-radius: 5px;
+        z-index: 9999;
+        max-width: 300px;
+        font-size: 14px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    `;
+    warning.innerHTML = `
+        <strong>🔒 Mixed Content Blocked</strong><br>
+        กรุณาคลิกไอคอน "โล่" หรื้อ "ไม่ปลอดภัย" ข้างบาร์ URL<br>
+        แล้วเลือก "Load unsafe scripts" เพื่อใช้งานแอป
+        <button onclick="this.parentNode.remove()" style="float:right;background:none;border:none;color:white;cursor:pointer;font-size:18px;">×</button>
+    `;
+    document.body.appendChild(warning);
+}
 
 // Check if app is working offline
 function checkOfflineStatus() {
@@ -62,7 +125,15 @@ async function apiCall(url, options = {}) {
         
         return data;
     } catch (error) {
-        console.error('API call failed:', error);
+        console.error('❌ API Error:', error.message);
+        
+        // Check if it's a Mixed Content error
+        if (error.message.includes('Mixed Content') || 
+            error.message.includes('HTTPS') ||
+            (window.location.protocol === 'https:' && url.startsWith('http:'))) {
+            
+            showMixedContentWarning();
+        }
         
         // If it's a POST request and we're offline, the service worker will handle it
         if (options.method === 'POST' && !navigator.onLine) {
@@ -71,6 +142,7 @@ async function apiCall(url, options = {}) {
         
         throw error;
     }
+}
 }
 
 // Load organizations
@@ -167,47 +239,96 @@ async function loadParcels() {
     try {
         console.log('🔄 Loading parcels for organization:', selectedOrganization);
         const orgParam = selectedOrganization === 'all' ? '' : `?org=${encodeURIComponent(selectedOrganization)}`;
-        const fullUrl = `${API_URL}/land_parcels${orgParam}`;
-        console.log('📡 Fetching from:', fullUrl);
         
-        const response = await fetch(fullUrl);
-        console.log('📊 Response status:', response.status);
+        // Try multiple API endpoints for better reliability
+        const endpoints = [
+            `${API_URL}/land_parcels${orgParam}`,
+            `http://tdmbackup.synology.me:8080/api/land_parcels${orgParam}`, // Direct HTTP fallback
+            `https://tdmbackup.synology.me/api/land_parcels${orgParam}` // HTTPS fallback
+        ];
+        
+        let response = null;
+        let lastError = null;
+        
+        for (const endpoint of endpoints) {
+            try {
+                console.log('� Trying endpoint:', endpoint);
+                response = await fetch(endpoint, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Success with endpoint:', endpoint);
+                    parcels = await response.json();
+                    console.log('✅ Loaded parcels:', parcels.length);
+                    
+                    // Filter by organization if needed
+                    if (selectedOrganization !== 'all') {
+                        parcels = parcels.filter(p => p.organization_name === selectedOrganization);
+                        console.log('🔍 Filtered parcels:', parcels.length);
+                    }
+                    
+                    renderParcelList();
+                    updateParcelCount();
+                    return; // Success, exit function
+                }
+            } catch (error) {
+                console.warn(`❌ Failed endpoint ${endpoint}:`, error.message);
+                lastError = error;
+                continue; // Try next endpoint
+            }
+        }
+        
+        // If all endpoints failed, show real data from known working API
+        console.warn('⚠️ All API endpoints failed, trying direct data fetch...');
+        await loadRealDataFallback();
+        
+    } catch (error) {
+        console.error('❌ Critical error loading parcels:', error);
+        await loadRealDataFallback();
+    }
+}
+
+// Fallback function to load real data directly
+async function loadRealDataFallback() {
+    try {
+        // Use direct fetch without CORS restrictions if possible
+        const response = await fetch('http://tdmbackup.synology.me:8080/api/land_parcels', {
+            method: 'GET'
+        });
         
         if (response.ok) {
-            parcels = await response.json();
-            console.log('✅ Loaded parcels:', parcels.length);
-        } else {
-            console.warn('⚠️ API response not ok, status:', response.status);
-            const errorText = await response.text();
-            console.error('❌ Error response:', errorText);
+            const realData = await response.json();
+            console.log('✅ Loaded real fallback data:', realData.length);
             
-            // Show demo data with error message
-            parcels = [
-                { parcel_cod: '02A001', org_name: selectedOrganization === 'all' ? 'อบต.ไชยคราม' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' },
-                { parcel_cod: '02A002', org_name: selectedOrganization === 'all' ? 'อบต.ไชยคราม' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' },
-                { parcel_cod: '02B001', org_name: selectedOrganization === 'all' ? 'อบต.บางแก้ว' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' }
-            ];
+            // Filter by organization
+            if (selectedOrganization !== 'all') {
+                parcels = realData.filter(p => p.organization_name === selectedOrganization);
+            } else {
+                parcels = realData;
+            }
             
-            // Show error notification
-            showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล กำลังแสดงข้อมูลตัวอย่าง', 'warning');
+            renderParcelList();
+            updateParcelCount();
+            showNotification('✅ โหลดข้อมูลจากฐานข้อมูลสำเร็จ', 'success');
+            return;
         }
-        renderParcelList();
-        updateParcelCount();
     } catch (error) {
-        console.error('❌ Network error loading parcels:', error);
-        
-        // Show demo data with error message
-        parcels = [
-            { parcel_cod: '02A001', org_name: 'อบต.ไชยคราม', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
-            { parcel_cod: '02B001', org_name: 'อบต.บางแก้ว', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
-            { parcel_cod: '02C001', org_name: 'อบต.คลองขุด', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' }
-        ];
-        renderParcelList();
-        updateParcelCount();
-        
-        // Show error notification
-        showNotification('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังแสดงข้อมูลตัวอย่าง', 'error');
+        console.error('❌ Fallback also failed:', error);
     }
+    
+    // Final fallback - use demo data but mark it clearly
+    console.log('📝 Using demo data as final fallback');
+    parcels = [
+        { parcel_cod: '02A001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '47-0-0', coordinates: '9.2774653641324,99.6308034154171' },
+        { parcel_cod: '02B001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '43845', coordinates: '9.27538969077421,99.6326572522743' },
+        { parcel_cod: '02C001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '29233', coordinates: '9.27763149696953,99.6330194589285' }
+    ];
+    
+    renderParcelList();
+    updateParcelCount();
+    showNotification('⚠️ ใช้ข้อมูลตัวอย่าง - ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'warning');
 }
 
 // Update parcel count display
@@ -1155,20 +1276,40 @@ function refreshData() {
 // Initialize application
 async function initializeApp() {
     console.log('🚀 Starting Land Parcel Management System...');
+    
+    // Check authentication first
+    const selectedOrg = localStorage.getItem('selectedOrganization');
+    const recorderName = localStorage.getItem('recorderName');
+    const loginTime = localStorage.getItem('loginTime');
+    
+    if (!selectedOrg || !recorderName || !loginTime) {
+        console.log('🔒 No authentication found, redirecting to login...');
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    // Check if session is still valid (24 hours)
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    if (Date.now() - parseInt(loginTime) > twentyFourHours) {
+        console.log('⏰ Session expired, redirecting to login...');
+        localStorage.clear();
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    console.log('✅ Authentication valid, continuing...');
     showLoading(true);
     
     try {
+        // Update user info display
+        updateUserInfo(selectedOrg, recorderName);
+        
         // Load organizations first
         await loadOrganizations();
         
-        // Set default organization (first one available or default)
-        if (organizations.length > 0) {
-            selectedOrganization = organizations[0].org_name;
-            selectOrganization(selectedOrganization);
-        } else {
-            selectedOrganization = 'อบต.ไชยคราม';
-            selectOrganization('all');
-        }
+        // Set organization from localStorage
+        selectedOrganization = selectedOrg;
+        selectOrganization(selectedOrganization);
         
         console.log('✅ Application initialized successfully');
         showLoading(false);
@@ -1176,8 +1317,8 @@ async function initializeApp() {
         console.error('❌ Error initializing app:', error);
         showLoading(false);
         // Continue with basic functionality
-        selectedOrganization = 'อบต.ไชยคราม';
-        selectOrganization('all');
+        selectedOrganization = selectedOrg;
+        selectOrganization(selectedOrganization);
     }
 }
 
@@ -1478,7 +1619,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchTimeout = setTimeout(async () => {
             try {
                 const orgParam = selectedOrganization === 'all' ? 'all' : selectedOrganization;
-                const searchUrl = `${API_URL}/search-land_parcels?q=${encodeURIComponent(query)}&org=${encodeURIComponent(orgParam)}`;
+                const searchUrl = `${API_URL}/search-parcels?q=${encodeURIComponent(query)}&org=${encodeURIComponent(orgParam)}`;
                 
                 console.log('🔍 Search URL:', searchUrl); // Debug log
                 
