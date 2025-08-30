@@ -8,9 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - point to your deployed server
+    // GitHub Pages - point to your Docker server
     if (window.location.hostname.includes('github.io')) {
-        return 'http://192.168.1.5:3000/api'; // หรือใส่ public URL ของเซิร์ฟเวอร์
+        return 'http://192.168.1.147:8080/api'; // Docker container
     }
     
     // Other development environments
