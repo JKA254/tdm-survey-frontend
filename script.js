@@ -8,10 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - Try HTTPS first, fallback to demo data if Mixed Content blocked
+    // GitHub Pages - Use HTTPS API via nginx reverse proxy
     if (window.location.hostname.includes('github.io')) {
-        // We'll try both HTTPS and HTTP, but expect Mixed Content issues
-        return 'https://tdmbackup.synology.me/api'; // Try HTTPS first
+        return 'https://tdmbackup.synology.me/api'; // HTTPS via nginx reverse proxy
     }
     
     // Other development environments
