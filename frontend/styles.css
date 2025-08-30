@@ -46,6 +46,25 @@ body {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
+}
+
+/* GitHub Pages Notice */
+.github-notice {
+    background: rgba(255, 193, 7, 0.9);
+    color: #000;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.github-notice a {
+    color: #0056b3;
+    text-decoration: underline;
 }
 
 .connection-status {

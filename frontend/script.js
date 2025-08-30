@@ -5,12 +5,12 @@
 const API_URL = (() => {
     // Check if we're running on localhost
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return 'http://localhost:8080/api';
+        return 'http://localhost:3000/api';
     }
     
     // GitHub Pages - point to your Synology NAS
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me/api'; // แทนที่ด้วย DDNS ของคุณ
+        return 'https://tdmbackup.sg4.quickconnect.to:8080/api'; // Synology Docker port 8080
     }
     
     // Other development environments
