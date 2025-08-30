@@ -8,11 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - use fallback to offline mode due to CORS
+    // GitHub Pages - point to your Synology NAS
     if (window.location.hostname.includes('github.io')) {
-        console.warn('🚧 GitHub Pages cannot connect to HTTP server due to Mixed Content policy');
-        console.warn('💡 Please use: http://192.168.1.147:8080 for full functionality');
-        return null; // This will trigger offline mode
+        return 'https://tdmbackup.sg4.quickconnect.to/api'; // Synology NAS
     }
     
     // Other development environments
