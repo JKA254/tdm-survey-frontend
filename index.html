@@ -31,6 +31,11 @@
             <h1><i class="fas fa-map-marked-alt"></i> ระบบจัดการแปลงที่ดิน</h1>
             <div class="header-actions">
                 <span id="connection-status" class="connection-status">🟢 ออนไลน์</span>
+                <!-- GitHub Pages Notice -->
+                <div id="github-notice" style="display: none;" class="github-notice">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>ใช้โหมดออฟไลน์ - สำหรับฟีเจอร์เต็ม กรุณาเข้า <a href="http://192.168.1.147:8080" target="_blank">http://192.168.1.147:8080</a></span>
+                </div>
                 <button onclick="showImportModal()" class="action-btn" title="นำเข้า Excel">
                     <i class="fas fa-file-excel"></i>
                 </button>
@@ -53,6 +58,9 @@
             </button>
             
             <div class="sidebar-actions">
+                <button onclick="showDashboard()" class="btn btn-info">
+                    <i class="fas fa-chart-bar"></i> แดชบอร์ด
+                </button>
                 <button onclick="addNewParcel()" class="btn btn-primary">
                     <i class="fas fa-plus"></i> เพิ่มแปลงใหม่
                 </button>
@@ -68,6 +76,62 @@
 
     <!-- Main Content -->
     <main class="main-content">
+        <!-- Dashboard View -->
+        <div id="dashboardView" class="view">
+            <div class="view-header">
+                <h2>แดشบอร์ดสถิติข้อมูล</h2>
+                <button onclick="loadParcels(); updateDashboardStats();" class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> รีเฟรช
+                </button>
+            </div>
+            
+            <div class="dashboard-grid">
+                <div class="stats-card">
+                    <div class="stats-header">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <h3>จำนวนแปลงทั้งหมด</h3>
+                    </div>
+                    <div class="stats-value" id="totalParcels">0</div>
+                </div>
+                
+                <div class="stats-card">
+                    <div class="stats-header">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <h3>มูลค่าประเมินรวม</h3>
+                    </div>
+                    <div class="stats-value" id="totalValue">0 บาท</div>
+                </div>
+                
+                <div class="stats-card">
+                    <div class="stats-header">
+                        <i class="fas fa-chart-line"></i>
+                        <h3>มูลค่าประเมินเฉลี่ย</h3>
+                    </div>
+                    <div class="stats-value" id="averageValue">0 บาท</div>
+                </div>
+                
+                <div class="stats-card">
+                    <div class="stats-header">
+                        <i class="fas fa-clock"></i>
+                        <h3>อัปเดตล่าสุด (7 วัน)</h3>
+                    </div>
+                    <div class="stats-value" id="recentUpdates">0 รายการ</div>
+                </div>
+            </div>
+            
+            <div class="charts-section">
+                <div class="chart-card">
+                    <h3><i class="fas fa-building"></i> จำนวนแปลงตาม อบต.</h3>
+                    <div id="orgChart" class="chart-container"></div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3><i class="fas fa-seedling"></i> จำนวนแปลงตามประเภท</h3>
+                    <div id="typeChart" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Parcel List View -->
         <div id="parcelListView" class="view active">
             <div class="view-header">

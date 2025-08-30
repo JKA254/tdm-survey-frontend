@@ -8,9 +8,11 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - point to your Docker server
+    // GitHub Pages - use fallback to offline mode due to CORS
     if (window.location.hostname.includes('github.io')) {
-        return 'http://192.168.1.147:8080/api'; // Docker container
+        console.warn('🚧 GitHub Pages cannot connect to HTTP server due to Mixed Content policy');
+        console.warn('💡 Please use: http://192.168.1.147:8080 for full functionality');
+        return null; // This will trigger offline mode
     }
     
     // Other development environments
@@ -24,6 +26,16 @@ const API_URL = (() => {
 })();
 
 console.log('🌐 API URL configured:', API_URL);
+
+// Show GitHub Pages notice if applicable
+if (window.location.hostname.includes('github.io')) {
+    document.addEventListener('DOMContentLoaded', () => {
+        const notice = document.getElementById('github-notice');
+        if (notice) {
+            notice.style.display = 'flex';
+        }
+    });
+}
 
 // Global variables
 let parcels = [];
