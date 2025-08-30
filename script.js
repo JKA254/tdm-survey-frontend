@@ -8,9 +8,10 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - point to your Synology NAS Docker container directly
+    // GitHub Pages - Try HTTPS first, fallback to demo data if Mixed Content blocked
     if (window.location.hostname.includes('github.io')) {
-        return 'http://tdmbackup.synology.me:8080/api'; // Direct Docker API access
+        // We'll try both HTTPS and HTTP, but expect Mixed Content issues
+        return 'https://tdmbackup.synology.me/api'; // Try HTTPS first
     }
     
     // Other development environments
@@ -238,47 +239,96 @@ async function loadParcels() {
     try {
         console.log('🔄 Loading parcels for organization:', selectedOrganization);
         const orgParam = selectedOrganization === 'all' ? '' : `?org=${encodeURIComponent(selectedOrganization)}`;
-        const fullUrl = `${API_URL}/land_parcels${orgParam}`;
-        console.log('📡 Fetching from:', fullUrl);
         
-        const response = await fetch(fullUrl);
-        console.log('📊 Response status:', response.status);
+        // Try multiple API endpoints for better reliability
+        const endpoints = [
+            `${API_URL}/land_parcels${orgParam}`,
+            `http://tdmbackup.synology.me:8080/api/land_parcels${orgParam}`, // Direct HTTP fallback
+            `https://tdmbackup.synology.me/api/land_parcels${orgParam}` // HTTPS fallback
+        ];
+        
+        let response = null;
+        let lastError = null;
+        
+        for (const endpoint of endpoints) {
+            try {
+                console.log('� Trying endpoint:', endpoint);
+                response = await fetch(endpoint, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Success with endpoint:', endpoint);
+                    parcels = await response.json();
+                    console.log('✅ Loaded parcels:', parcels.length);
+                    
+                    // Filter by organization if needed
+                    if (selectedOrganization !== 'all') {
+                        parcels = parcels.filter(p => p.organization_name === selectedOrganization);
+                        console.log('🔍 Filtered parcels:', parcels.length);
+                    }
+                    
+                    renderParcelList();
+                    updateParcelCount();
+                    return; // Success, exit function
+                }
+            } catch (error) {
+                console.warn(`❌ Failed endpoint ${endpoint}:`, error.message);
+                lastError = error;
+                continue; // Try next endpoint
+            }
+        }
+        
+        // If all endpoints failed, show real data from known working API
+        console.warn('⚠️ All API endpoints failed, trying direct data fetch...');
+        await loadRealDataFallback();
+        
+    } catch (error) {
+        console.error('❌ Critical error loading parcels:', error);
+        await loadRealDataFallback();
+    }
+}
+
+// Fallback function to load real data directly
+async function loadRealDataFallback() {
+    try {
+        // Use direct fetch without CORS restrictions if possible
+        const response = await fetch('http://tdmbackup.synology.me:8080/api/land_parcels', {
+            method: 'GET'
+        });
         
         if (response.ok) {
-            parcels = await response.json();
-            console.log('✅ Loaded parcels:', parcels.length);
-        } else {
-            console.warn('⚠️ API response not ok, status:', response.status);
-            const errorText = await response.text();
-            console.error('❌ Error response:', errorText);
+            const realData = await response.json();
+            console.log('✅ Loaded real fallback data:', realData.length);
             
-            // Show demo data with error message
-            parcels = [
-                { parcel_cod: '02A001', org_name: selectedOrganization === 'all' ? 'อบต.ไชยคราม' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' },
-                { parcel_cod: '02A002', org_name: selectedOrganization === 'all' ? 'อบต.ไชยคราม' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' },
-                { parcel_cod: '02B001', org_name: selectedOrganization === 'all' ? 'อบต.บางแก้ว' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง' }
-            ];
+            // Filter by organization
+            if (selectedOrganization !== 'all') {
+                parcels = realData.filter(p => p.organization_name === selectedOrganization);
+            } else {
+                parcels = realData;
+            }
             
-            // Show error notification
-            showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูล กำลังแสดงข้อมูลตัวอย่าง', 'warning');
+            renderParcelList();
+            updateParcelCount();
+            showNotification('✅ โหลดข้อมูลจากฐานข้อมูลสำเร็จ', 'success');
+            return;
         }
-        renderParcelList();
-        updateParcelCount();
     } catch (error) {
-        console.error('❌ Network error loading parcels:', error);
-        
-        // Show demo data with error message
-        parcels = [
-            { parcel_cod: '02A001', org_name: 'อบต.ไชยคราม', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
-            { parcel_cod: '02B001', org_name: 'อบต.บางแก้ว', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
-            { parcel_cod: '02C001', org_name: 'อบต.คลองขุด', owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' }
-        ];
-        renderParcelList();
-        updateParcelCount();
-        
-        // Show error notification
-        showNotification('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังแสดงข้อมูลตัวอย่าง', 'error');
+        console.error('❌ Fallback also failed:', error);
     }
+    
+    // Final fallback - use demo data but mark it clearly
+    console.log('📝 Using demo data as final fallback');
+    parcels = [
+        { parcel_cod: '02A001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '47-0-0', coordinates: '9.2774653641324,99.6308034154171' },
+        { parcel_cod: '02B001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '43845', coordinates: '9.27538969077421,99.6326572522743' },
+        { parcel_cod: '02C001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '29233', coordinates: '9.27763149696953,99.6330194589285' }
+    ];
+    
+    renderParcelList();
+    updateParcelCount();
+    showNotification('⚠️ ใช้ข้อมูลตัวอย่าง - ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'warning');
 }
 
 // Update parcel count display
