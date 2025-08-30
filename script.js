@@ -10,7 +10,7 @@ const API_URL = (() => {
     
     // GitHub Pages - point to your Synology NAS
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me/api'; // Synology NAS with reverse proxy
+        return 'https://tdmbackup.synology.me/api'; // Synology NAS API base URL
     }
     
     // Other development environments
