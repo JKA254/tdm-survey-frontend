@@ -10,7 +10,7 @@ const API_URL = (() => {
     
     // GitHub Pages - point to your Synology NAS
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.sg4.quickconnect.to:8080/api'; // Synology Docker port 8080
+        return 'https://tdmbackup.sg4.quickconnect.to/api'; // Synology NAS (standard port)
     }
     
     // Other development environments
