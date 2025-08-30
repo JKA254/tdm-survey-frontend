@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการแปลงที่ดิน - Land Parcel Management</title>
+    
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ff7f00">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="TDM จัดการที่ดิน">
+    <link rel="apple-touch-icon" href="/icons/tdm-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/tdm-icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/tdm-icon-72x72.png">
+    
+    <!-- CSS Files with offline fallbacks -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" onerror="this.onerror=null;this.href='/libs/font-awesome.css';">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null;this.href='/libs/leaflet.css';" />
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <button class="menu-btn" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1><i class="fas fa-map-marked-alt"></i> ระบบจัดการแปลงที่ดิน</h1>
+            <div class="header-actions">
+                <span id="connection-status" class="connection-status">🟢 ออนไลน์</span>
+                <button onclick="showImportModal()" class="action-btn" title="นำเข้า Excel">
+                    <i class="fas fa-file-excel"></i>
+                </button>
+                <button onclick="showSearchModal()" class="action-btn" title="ค้นหา">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+            <h3>องค์การบริหารส่วนตำบล</h3>
+            <select id="organizationSelect" onchange="changeOrganization()">
+                <option value="all">ทั้งหมด</option>
+            </select>
+            <button onclick="showAddOrgModal()" class="add-org-btn" title="เพิ่ม อบต. ใหม่">
+                <i class="fas fa-plus"></i> เพิ่ม อบต.
+            </button>
+            
+            <div class="sidebar-actions">
+                <button onclick="addNewParcel()" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> เพิ่มแปลงใหม่
+                </button>
+                <button onclick="exportToExcel()" class="btn btn-success">
+                    <i class="fas fa-download"></i> Export Excel
+                </button>
+                <button onclick="showMapView()" class="btn btn-info">
+                    <i class="fas fa-map"></i> ดูแผนที่
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Parcel List View -->
+        <div id="parcelListView" class="view active">
+            <div class="view-header">
+                <h2>รายการแปลงที่ดิน</h2>
+                <div class="filter-controls">
+                    <input type="text" id="quickSearch" placeholder="ค้นหาแปลงที่ดิน..." onkeyup="filterParcels(this.value)">
+                    <span class="parcel-count">จำนวน: <span id="parcelCount">0</span> แปลง</span>
+                </div>
+            </div>
+            <div id="parcelList" class="parcel-list">
+                <!-- Parcel items จะถูกโหลดที่นี่ -->
+            </div>
+        </div>
+
+        <!-- Map View -->
+        <div id="mapView" class="view">
+            <div class="view-header">
+                <h2>แผนที่แปลงที่ดิน</h2>
+                <button onclick="showParcelList()" class="btn btn-secondary">
+                    <i class="fas fa-list"></i> กลับสู่รายการ
+                </button>
+            </div>
+            <div id="map" class="map-container"></div>
+        </div>
+    </main>
+
+    <!-- Parcel Edit Modal -->
+    <div id="parcelModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">แก้ไขข้อมูลแปลงที่ดิน</h2>
+                <button class="close-modal" onclick="closeParcelModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="parcelForm" class="parcel-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>องค์กร</label>
+                        <input type="text" id="organizationName" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>รหัสแปลงที่ดิน <span class="required">*</span></label>
+                        <input type="text" id="parcelCode" placeholder="เช่น 02A001" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ชื่อ-สกุล เจ้าของ</label>
+                        <input type="text" id="ownerName" placeholder="นาย/นาง/นางสาว">
+                    </div>
+                    <div class="form-group">
+                        <label>ขนาดที่ดิน (ร-ง-ว)</label>
+                        <input type="text" id="ryw" placeholder="47-0-0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ราคาประเมิน (บาท)</label>
+                        <input type="number" id="assessedValue" placeholder="150.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>หมู่ที่</label>
+                        <input type="text" id="villageNumber" placeholder="หมู่ที่">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ประเภทเกษตร</label>
+                        <select id="landType">
+                            <option value="">เลือกประเภท</option>
+                            <option value="ยางพารา">ยางพารา</option>
+                            <option value="มะพร้าว">มะพร้าว</option>
+                            <option value="ปาล์ม">ปาล์ม</option>
+                            <option value="ทุเรียน">ทุเรียน</option>
+                            <option value="สับปะรด">สับปะรด</option>
+                            <option value="หญ้าว">หญ้าว</option>
+                            <option value="มะม่วง">มะม่วง</option>
+                            <option value="สวนผสม">สวนผสม</option>
+                            <option value="กระท้อม">กระท้อม</option>
+                            <option value="ปลูกข้าว">ปลูกข้าว</option>
+                            <option value="ข้าวโพด">ข้าวโพด</option>
+                            <option value="อ้อย">อ้อย</option>
+                            <option value="มันสำปะหลัง">มันสำปะหลัง</option>
+                            <option value="ป่าสน">ป่าสน</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>สถานะการใช้งาน</label>
+                        <select id="landUse">
+                            <option value="">เลือกสถานะ</option>
+                            <option value="ใช้หมด">ใช้หมด</option>
+                            <option value="ใช้ต่อเนื่อง">ใช้ต่อเนื่อง</option>
+                            <option value="4-พื้นไว้รกร้าง/ว่างเปล่า">4-พื้นไว้รกร้าง/ว่างเปล่า</option>
+                            <option value="กำลังก่อสร้าง">กำลังก่อสร้าง</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>หมายเหตุ</label>
+                    <textarea id="remarks" rows="3" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>รูปภาพ</label>
+                    <div class="photo-upload">
+                        <input type="file" id="photoUpload" accept="image/*" multiple style="display: none;">
+                        <button type="button" onclick="document.getElementById('photoUpload').click()" class="photo-btn">
+                            <i class="fas fa-camera"></i> เลือกรูปภาพ
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>พิกัดที่ตั้ง (Coordinates) <span class="required">*</span></label>
+                    <div class="location-input">
+                        <input type="text" id="coordinates" placeholder="9.277465, 99.630803" readonly>
+                        <button type="button" onclick="getCurrentLocation()" class="location-btn">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </button>
+                    </div>
+                    <div id="miniMap" class="mini-map"></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ผู้บันทึกข้อมูล</label>
+                        <input type="text" id="recorder" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>วันเวลาที่บันทึก</label>
+                        <input type="datetime-local" id="timestamp" readonly>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" onclick="closeParcelModal()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> ยกเลิก
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Excel Modal -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>นำเข้าข้อมูลจาก Excel</h2>
+                <button class="close-modal" onclick="closeImportModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="import-content">
+                <div class="drop-zone" id="dropZone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>ลากไฟล์ Excel มาวางที่นี่ หรือ คลิกเพื่อเลือกไฟล์</p>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                </div>
+                <div id="previewTable" class="preview-table"></div>
+                <div class="import-actions">
+                    <button onclick="closeImportModal()" class="btn btn-secondary">ยกเลิก</button>
+                    <button onclick="importData()" class="btn btn-primary" disabled>นำเข้าข้อมูล</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>ค้นหาข้อมูล</h2>
+                <button class="close-modal" onclick="closeSearchModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="search-content">
+                <input type="text" id="searchInput" placeholder="ค้นหารหัสแปลง, ชื่อเจ้าของ, หมู่บ้าน...">
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Organization Modal -->
+    <div id="addOrgModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>เพิ่มองค์การบริหารส่วนตำบลใหม่</h3>
+                <button class="close-btn" onclick="closeAddOrgModal()">&times;</button>
+            </div>
+            <div class="form-content">
+                <div class="form-group">
+                    <label for="newOrgName">ชื่อ อบต.:</label>
+                    <input type="text" id="newOrgName" placeholder="เช่น อบต.ไชยคราม" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="newOrgCode">รหัส อบต. (ถ้ามี):</label>
+                    <input type="text" id="newOrgCode" placeholder="เช่น CHK001" maxlength="20">
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeAddOrgModal()" class="btn btn-secondary">ยกเลิก</button>
+                    <button type="button" onclick="addNewOrganization()" class="btn btn-primary">เพิ่ม</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>กำลังโหลดข้อมูล...</p>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-item-bottom active" onclick="showParcelList()">
+            <i class="fas fa-list"></i>
+            <span>รายการ</span>
+        </div>
+        <div class="nav-item-bottom" onclick="showMapView()">
+            <i class="fas fa-map"></i>
+            <span>แผนที่</span>
+        </div>
+        <div class="nav-item-bottom" onclick="addNewParcel()">
+            <i class="fas fa-plus"></i>
+            <span>เพิ่มใหม่</span>
+        </div>
+    </nav>
+
+    <!-- JavaScript Libraries with offline fallbacks -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="this.src='/libs/leaflet.js'"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4/2.9.0/proj4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.min.js"></script>
+    
+    <!-- PWA Scripts -->
+    <script src="pwa-installer.js"></script>
+    
+    <!-- Offline Support Script -->
+    <script>
+    // รอรับข้อมูลจาก Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', event => {
+            const { type, data, syncedCount, failedCount, timestamp } = event.data;
+            
+            if (type === 'SYNC_SUCCESS') {
+                showNotification(`✅ ข้อมูล ${data.parcel_cod} ถูกส่งสำเร็จแล้ว`, 'success');
+            } else if (type === 'SYNC_COMPLETED') {
+                if (syncedCount > 0) {
+                    showNotification(`📤 ส่งข้อมูล ${syncedCount} รายการสำเร็จ`, 'success');
+                }
+                if (failedCount > 0) {
+                    showNotification(`❌ ส่งข้อมูลไม่สำเร็จ ${failedCount} รายการ`, 'warning');
+                }
+            }
+        });
+    }
+    
+    // แสดงสถานะการเชื่อมต่อ
+    function updateConnectionStatus() {
+        const isOnline = navigator.onLine;
+        const statusElement = document.getElementById('connection-status');
+        
+        if (statusElement) {
+            statusElement.textContent = isOnline ? '🟢 ออนไลน์' : '🔴 ออฟไลน์';
+            statusElement.className = isOnline ? 'online' : 'offline';
+        }
+        
+        // พยายาม sync ข้อมูลเมื่อออนไลน์
+        if (isOnline && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                if (registration.sync) {
+                    registration.sync.register('background-sync');
+                }
+            });
+        }
+    }
+    
+    // ฟังการเปลี่ยนแปลงสถานะเครือข่าย
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+    
+    // อัพเดทสถานะเมื่อโหลดหน้า
+    document.addEventListener('DOMContentLoaded', updateConnectionStatus);
+    </script>
+    
+    <!-- Application JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
