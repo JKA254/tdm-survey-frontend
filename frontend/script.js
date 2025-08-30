@@ -218,6 +218,159 @@ function updateParcelCount(count = null) {
         const orgText = selectedOrganization === 'all' ? 'ทุก อบต.' : selectedOrganization;
         parcelCountSpan.textContent = `รายการ: ${displayCount} (${orgText})`;
     }
+    
+    // Update dashboard statistics
+    updateDashboardStats();
+}
+
+// Update dashboard statistics
+function updateDashboardStats() {
+    const stats = calculateParcelStats();
+    updateStatsDisplay(stats);
+}
+
+// Calculate parcel statistics
+function calculateParcelStats() {
+    if (!parcels || parcels.length === 0) {
+        return {
+            total: 0,
+            totalValue: 0,
+            averageValue: 0,
+            byOrganization: {},
+            byLandType: {},
+            recentUpdates: 0
+        };
+    }
+    
+    const stats = {
+        total: parcels.length,
+        totalValue: 0,
+        byOrganization: {},
+        byLandType: {},
+        recentUpdates: 0
+    };
+    
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    parcels.forEach(parcel => {
+        // Count by organization
+        const org = parcel.org_name || parcel.organization_name || 'ไม่ระบุ';
+        stats.byOrganization[org] = (stats.byOrganization[org] || 0) + 1;
+        
+        // Count by land type
+        const landType = parcel.land_type || 'ไม่ระบุ';
+        stats.byLandType[landType] = (stats.byLandType[landType] || 0) + 1;
+        
+        // Calculate total value
+        if (parcel.assessed_value) {
+            stats.totalValue += parseFloat(parcel.assessed_value) || 0;
+        }
+        
+        // Count recent updates
+        if (parcel.timestamp) {
+            const updateDate = new Date(parcel.timestamp);
+            if (updateDate >= oneWeekAgo) {
+                stats.recentUpdates++;
+            }
+        }
+    });
+    
+    stats.averageValue = stats.total > 0 ? stats.totalValue / stats.total : 0;
+    
+    return stats;
+}
+
+// Update stats display in the UI
+function updateStatsDisplay(stats) {
+    // Update total count
+    const totalElement = document.getElementById('totalParcels');
+    if (totalElement) {
+        totalElement.textContent = stats.total.toLocaleString('th-TH');
+    }
+    
+    // Update total value
+    const valueElement = document.getElementById('totalValue');
+    if (valueElement) {
+        valueElement.textContent = stats.totalValue.toLocaleString('th-TH', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }) + ' บาท';
+    }
+    
+    // Update average value
+    const avgElement = document.getElementById('averageValue');
+    if (avgElement) {
+        avgElement.textContent = stats.averageValue.toLocaleString('th-TH', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }) + ' บาท';
+    }
+    
+    // Update recent updates count
+    const recentElement = document.getElementById('recentUpdates');
+    if (recentElement) {
+        recentElement.textContent = stats.recentUpdates + ' รายการ';
+    }
+}
+
+// Render charts for dashboard
+function renderCharts() {
+    const stats = calculateParcelStats();
+    renderOrganizationChart(stats.byOrganization);
+    renderLandTypeChart(stats.byLandType);
+}
+
+// Render organization chart
+function renderOrganizationChart(orgData) {
+    const container = document.getElementById('orgChart');
+    if (!container || !orgData) return;
+    
+    container.innerHTML = '';
+    
+    const maxValue = Math.max(...Object.values(orgData));
+    
+    Object.entries(orgData).forEach(([org, count]) => {
+        const percentage = maxValue > 0 ? (count / maxValue) * 100 : 0;
+        
+        const chartBar = document.createElement('div');
+        chartBar.className = 'chart-bar';
+        chartBar.innerHTML = `
+            <div class="chart-label">${org.replace('อบต.', '')}</div>
+            <div class="chart-progress">
+                <div class="chart-fill" style="width: ${percentage}%"></div>
+            </div>
+            <div class="chart-value">${count}</div>
+        `;
+        
+        container.appendChild(chartBar);
+    });
+}
+
+// Render land type chart
+function renderLandTypeChart(typeData) {
+    const container = document.getElementById('typeChart');
+    if (!container || !typeData) return;
+    
+    container.innerHTML = '';
+    
+    const maxValue = Math.max(...Object.values(typeData));
+    
+    Object.entries(typeData).forEach(([type, count]) => {
+        const percentage = maxValue > 0 ? (count / maxValue) * 100 : 0;
+        
+        const chartBar = document.createElement('div');
+        chartBar.className = 'chart-bar';
+        chartBar.innerHTML = `
+            <div class="chart-label">${type}</div>
+            <div class="chart-progress">
+                <div class="chart-fill" style="width: ${percentage}%"></div>
+            </div>
+            <div class="chart-value">${count}</div>
+        `;
+        
+        container.appendChild(chartBar);
+    });
 }
 
 // Render parcel list
@@ -370,7 +523,16 @@ function setActiveNav(clickedItem) {
     });
     clickedItem.classList.add('active');
 }
+
 // View switching
+function showDashboard() {
+    setActiveView('dashboardView');
+    loadParcels().then(() => {
+        updateDashboardStats();
+        renderCharts();
+    });
+}
+
 function showParcelList() {
     setActiveView('parcelListView');
     loadParcels();
@@ -1438,3 +1600,48 @@ document.addEventListener('DOMContentLoaded', function() {
         timestampInput.value = new Date().toISOString().slice(0, 16);
     }
 });
+
+// Initialize application
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 TDM Survey System Initializing...');
+    
+    // Initialize UI components
+    initializePWA();
+    loadOrganizations();
+    
+    // Set default view to dashboard
+    showDashboard();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    console.log('✅ System initialized successfully');
+});
+
+// Setup event listeners
+function setupEventListeners() {
+    // Online/offline detection
+    window.addEventListener('online', () => {
+        updateConnectionStatus(true);
+        showNotification('🟢 กลับมาออนไลน์แล้ว', 'success');
+    });
+    
+    window.addEventListener('offline', () => {
+        updateConnectionStatus(false);
+        showNotification('🔴 ขาดการเชื่อมต่อ ทำงานแบบออฟไลน์', 'warning');
+    });
+}
+
+// Update connection status indicator
+function updateConnectionStatus(isOnline) {
+    const statusElement = document.getElementById('connection-status');
+    if (statusElement) {
+        if (isOnline) {
+            statusElement.textContent = '🟢 ออนไลน์';
+            statusElement.className = 'connection-status online';
+        } else {
+            statusElement.textContent = '🔴 ออฟไลน์';
+            statusElement.className = 'connection-status offline';
+        }
+    }
+}

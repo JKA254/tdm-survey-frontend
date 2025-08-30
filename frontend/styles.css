@@ -1805,3 +1805,143 @@ body {
 .org-badge[data-org="อบต.คลองขุด"] {
     background: linear-gradient(135deg, #2196F3, #1976D2);
 }
+
+/* Dashboard Styles */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: 1px solid #e0e0e0;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stats-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    color: #666;
+}
+
+.stats-header i {
+    font-size: 1.5em;
+    color: #e57373;
+}
+
+.stats-header h3 {
+    font-size: 0.9em;
+    margin: 0;
+    font-weight: 500;
+}
+
+.stats-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #e57373;
+    margin-bottom: 5px;
+}
+
+.charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+}
+
+.chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: 1px solid #e0e0e0;
+}
+
+.chart-card h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chart-card h3 i {
+    color: #e57373;
+}
+
+.chart-container {
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chart-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.chart-bar:last-child {
+    border-bottom: none;
+}
+
+.chart-label {
+    min-width: 120px;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.chart-progress {
+    flex: 1;
+    height: 8px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.chart-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e57373, #ef5350);
+    border-radius: 4px;
+    transition: width 0.8s ease;
+}
+
+.chart-value {
+    min-width: 50px;
+    text-align: right;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #e57373;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .charts-section {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .stats-value {
+        font-size: 1.5em;
+    }
+}
