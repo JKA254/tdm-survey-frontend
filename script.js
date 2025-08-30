@@ -10,7 +10,7 @@ const API_URL = (() => {
     
     // GitHub Pages - point to your Synology NAS
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.sg4.quickconnect.to/api'; // Synology NAS
+        return 'https://tdmbackup.sg4.quickconnect.to:8080/api'; // Synology Docker port 8080
     }
     
     // Other development environments
@@ -24,16 +24,6 @@ const API_URL = (() => {
 })();
 
 console.log('🌐 API URL configured:', API_URL);
-
-// Show GitHub Pages notice if applicable
-if (window.location.hostname.includes('github.io')) {
-    document.addEventListener('DOMContentLoaded', () => {
-        const notice = document.getElementById('github-notice');
-        if (notice) {
-            notice.style.display = 'flex';
-        }
-    });
-}
 
 // Global variables
 let parcels = [];
