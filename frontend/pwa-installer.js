@@ -315,7 +315,7 @@ class PWAInstaller {
         if ('serviceWorker' in navigator) {
             try {
                 console.log('🔧 Registering service worker...');
-                const registration = await navigator.serviceWorker.register('/sw.js');
+                const registration = await navigator.serviceWorker.register('/tdm-survey-frontend/sw.js', { scope: '/tdm-survey-frontend/' });
                 
                 console.log('✅ Service Worker registered:', registration);
                 

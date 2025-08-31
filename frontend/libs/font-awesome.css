@@ -1,31 +1,27 @@
-/* Font Awesome 6.0.0 Fallback - Critical Icons Only */
-.fas, .far, .fab { 
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    display: inline-block;
-    text-rendering: auto;
+/* Font Awesome Local Fallback */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
+/* Basic fallback styles for essential icons when CDN is not available */
+.fa, .fas, .far, .fal, .fad, .fab {
+  font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", sans-serif;
+  font-weight: 900;
+  display: inline-block;
 }
 
-.fa-bars:before { content: "\f0c9"; }
-.fa-search:before { content: "\f002"; }
-.fa-plus:before { content: "\f067"; }
-.fa-edit:before { content: "\f044"; }
-.fa-trash:before { content: "\f2ed"; }
-.fa-map-marker-alt:before { content: "\f3c5"; }
-.fa-download:before { content: "\f019"; }
-.fa-upload:before { content: "\f093"; }
-.fa-map:before { content: "\f279"; }
-.fa-user:before { content: "\f007"; }
-.fa-cog:before { content: "\f013"; }
-.fa-home:before { content: "\f015"; }
-.fa-list:before { content: "\f03a"; }
-.fa-chart-bar:before { content: "\f080"; }
-.fa-file-excel:before { content: "\f1c3"; }
-.fa-spin { 
-    animation: fa-spin 2s infinite linear;
-}
-
-@keyframes fa-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(359deg); }
-}
+/* Essential icon fallbacks using Unicode */
+.fa-save::before { content: "💾"; }
+.fa-edit::before { content: "✏️"; }
+.fa-trash::before { content: "🗑️"; }
+.fa-plus::before { content: "+"; }
+.fa-search::before { content: "🔍"; }
+.fa-home::before { content: "🏠"; }
+.fa-user::before { content: "👤"; }
+.fa-map::before { content: "🗺️"; }
+.fa-location::before { content: "📍"; }
+.fa-download::before { content: "⬇️"; }
+.fa-upload::before { content: "⬆️"; }
+.fa-sync::before { content: "🔄"; }
+.fa-check::before { content: "✅"; }
+.fa-times::before { content: "❌"; }
+.fa-info::before { content: "ℹ️"; }
+.fa-warning::before { content: "⚠️"; }

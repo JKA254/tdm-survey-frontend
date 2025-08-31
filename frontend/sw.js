@@ -1,22 +1,22 @@
 const CACHE_NAME = 'tdm-land-management-v1.1.0';
-const OFFLINE_URL = './offline.html';
+const OFFLINE_URL = '/tdm-survey-frontend/offline.html';
 const DATA_CACHE_NAME = 'tdm-data-cache-v1.1.0';
 
 // รายการไฟล์ที่ต้อง cache สำหรับใช้งาน offline
 const STATIC_CACHE_URLS = [
-  './',
-  './index.html',
-  './login.html',
-  './offline.html',
-  './script.js',
-  './styles.css',
-  './manifest.json',
-  './icons/tdm-icon-192x192.png',
-  './icons/tdm-icon-512x512.png',
+  '/tdm-survey-frontend/',
+  '/tdm-survey-frontend/index.html',
+  '/tdm-survey-frontend/login.html',
+  '/tdm-survey-frontend/offline.html',
+  '/tdm-survey-frontend/script.js',
+  '/tdm-survey-frontend/styles.css',
+  '/tdm-survey-frontend/manifest.json',
+  '/tdm-survey-frontend/icons/tdm-icon-192x192.png',
+  '/tdm-survey-frontend/icons/tdm-icon-512x512.png',
   // Local fallbacks for external libraries
-  './libs/font-awesome.css',
-  './libs/leaflet.css', 
-  './libs/leaflet.js'
+  '/tdm-survey-frontend/libs/font-awesome.css',
+  '/tdm-survey-frontend/libs/leaflet.css',
+  '/tdm-survey-frontend/libs/leaflet.js'
 ];
 
 // External CDN resources with local fallbacks
@@ -485,8 +485,8 @@ self.addEventListener('push', event => {
   if (event.data) {
     const options = {
       body: event.data.text(),
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/badge-72x72.png',
+      icon: './icons/tdm-icon-192x192.png',
+      badge: './icons/tdm-icon-72x72.png',
       vibrate: [100, 50, 100],
       data: {
         dateOfArrival: Date.now(),

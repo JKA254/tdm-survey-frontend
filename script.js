@@ -7,18 +7,28 @@ const API_URL = (() => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         return 'http://localhost:3000/api';
     }
-    
-    // GitHub Pages - Use direct API connection (temporary fix)
+
+    // GitHub Pages - point to your Synology NAS backend
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me:8080/api'; // Direct API access
+        // Use Synology NAS backend with SQL database
+        const nasDomain = 'tdmbackup.synology.me'; // เปลี่ยนเป็น QuickConnect domain ของคุณ
+        return `http://${nasDomain}:8080/api`;
     }
-    
-    // Other development environments
-    if (window.location.hostname.includes('ngrok') || 
-        window.location.hostname.includes('192.168.')) {
+
+    // Synology NAS environments (QuickConnect or direct IP)
+    if (window.location.hostname.includes('quickconnect.to') ||
+        window.location.hostname.includes('synology.me') ||
+        window.location.hostname.includes('192.168.') ||
+        window.location.hostname.includes('10.0.') ||
+        window.location.hostname.includes('172.')) {
         return `${window.location.protocol}//${window.location.host}/api`;
     }
-    
+
+    // Railway backend as fallback
+    if (window.location.hostname.includes('railway.app')) {
+        return 'https://tdm-survey-backend-production.up.railway.app/api';
+    }
+
     // Default fallback
     return `${window.location.protocol}//${window.location.host}/api`;
 })();
@@ -31,68 +41,6 @@ let organizations = [];
 let currentParcel = null;
 let selectedOrganization = 'all';
 let isOffline = false;
-
-// Check if app is working offline
-function checkOfflineStatus() {
-    isOffline = !navigator.onLine;
-    return isOffline;
-}
-
-// Enhanced API call with offline support and Mixed Content warning
-async function apiCall(url, options = {}) {
-    try {
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-        
-        if (response.ok) {
-            return response;
-        } else {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-    } catch (error) {
-        console.error('❌ API Error:', error.message);
-        
-        // Check if it's a Mixed Content error
-        if (error.message.includes('Mixed Content') || 
-            error.message.includes('HTTPS') ||
-            window.location.protocol === 'https:' && url.startsWith('http:')) {
-            
-            showMixedContentWarning();
-        }
-        
-        throw error;
-    }
-}
-
-// Show Mixed Content warning to user
-function showMixedContentWarning() {
-    const warning = document.createElement('div');
-    warning.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: #ff4444;
-        color: white;
-        padding: 15px;
-        border-radius: 5px;
-        z-index: 9999;
-        max-width: 300px;
-        font-size: 14px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    `;
-    warning.innerHTML = `
-        <strong>🔒 Mixed Content Blocked</strong><br>
-        กรุณาคลิกไอคอน "โล่" หรื้อ "ไม่ปลอดภัย" ข้างบาร์ URL<br>
-        แล้วเลือก "Load unsafe scripts" เพื่อใช้งานแอป
-        <button onclick="this.parentNode.remove()" style="float:right;background:none;border:none;color:white;cursor:pointer;font-size:18px;">×</button>
-    `;
-    document.body.appendChild(warning);
-}
 
 // Check if app is working offline
 function checkOfflineStatus() {
@@ -124,15 +72,7 @@ async function apiCall(url, options = {}) {
         
         return data;
     } catch (error) {
-        console.error('❌ API Error:', error.message);
-        
-        // Check if it's a Mixed Content error
-        if (error.message.includes('Mixed Content') || 
-            error.message.includes('HTTPS') ||
-            (window.location.protocol === 'https:' && url.startsWith('http:'))) {
-            
-            showMixedContentWarning();
-        }
+        console.error('API call failed:', error);
         
         // If it's a POST request and we're offline, the service worker will handle it
         if (options.method === 'POST' && !navigator.onLine) {
@@ -141,7 +81,6 @@ async function apiCall(url, options = {}) {
         
         throw error;
     }
-}
 }
 
 // Load organizations
@@ -238,97 +177,29 @@ async function loadParcels() {
     try {
         console.log('🔄 Loading parcels for organization:', selectedOrganization);
         const orgParam = selectedOrganization === 'all' ? '' : `?org=${encodeURIComponent(selectedOrganization)}`;
-        
-        // Try multiple API endpoints for better reliability
-        const endpoints = [
-            `${API_URL}/land_parcels${orgParam}`,
-            `https://tdmbackup.synology.me:8081/api/land_parcels${orgParam}`, // nginx port 8081
-            `http://tdmbackup.synology.me:8080/api/land_parcels${orgParam}`, // Direct HTTP fallback
-            `https://tdmbackup.synology.me/api/land_parcels${orgParam}` // HTTPS fallback
-        ];
-        
-        let response = null;
-        let lastError = null;
-        
-        for (const endpoint of endpoints) {
-            try {
-                console.log('� Trying endpoint:', endpoint);
-                response = await fetch(endpoint, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-                
-                if (response.ok) {
-                    console.log('✅ Success with endpoint:', endpoint);
-                    parcels = await response.json();
-                    console.log('✅ Loaded parcels:', parcels.length);
-                    
-                    // Filter by organization if needed
-                    if (selectedOrganization !== 'all') {
-                        parcels = parcels.filter(p => p.organization_name === selectedOrganization);
-                        console.log('🔍 Filtered parcels:', parcels.length);
-                    }
-                    
-                    renderParcelList();
-                    updateParcelCount();
-                    return; // Success, exit function
-                }
-            } catch (error) {
-                console.warn(`❌ Failed endpoint ${endpoint}:`, error.message);
-                lastError = error;
-                continue; // Try next endpoint
-            }
-        }
-        
-        // If all endpoints failed, show real data from known working API
-        console.warn('⚠️ All API endpoints failed, trying direct data fetch...');
-        await loadRealDataFallback();
-        
-    } catch (error) {
-        console.error('❌ Critical error loading parcels:', error);
-        await loadRealDataFallback();
-    }
-}
+        const fullUrl = `${API_URL}/land_parcels${orgParam}`;
+        console.log('📡 Fetching from:', fullUrl);
 
-// Fallback function to load real data directly
-async function loadRealDataFallback() {
-    try {
-        // Use direct fetch without CORS restrictions if possible
-        const response = await fetch('http://tdmbackup.synology.me:8080/api/land_parcels', {
-            method: 'GET'
-        });
-        
-        if (response.ok) {
-            const realData = await response.json();
-            console.log('✅ Loaded real fallback data:', realData.length);
-            
-            // Filter by organization
-            if (selectedOrganization !== 'all') {
-                parcels = realData.filter(p => p.organization_name === selectedOrganization);
-            } else {
-                parcels = realData;
-            }
-            
-            renderParcelList();
-            updateParcelCount();
-            showNotification('✅ โหลดข้อมูลจากฐานข้อมูลสำเร็จ', 'success');
-            return;
-        }
+        const data = await apiCall(fullUrl);
+        console.log('✅ Loaded parcels:', data.length);
+        parcels = data;
+        renderParcelList();
+        updateParcelCount();
     } catch (error) {
-        console.error('❌ Fallback also failed:', error);
+        console.error('❌ Network error loading parcels:', error);
+
+        // Show demo data with error message
+        parcels = [
+            { parcel_cod: '02A001', org_name: selectedOrganization === 'all' ? 'อบต.ไชยคราม' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
+            { parcel_cod: '02B001', org_name: selectedOrganization === 'all' ? 'อบต.บางแก้ว' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' },
+            { parcel_cod: '02C001', org_name: selectedOrganization === 'all' ? 'อบต.คลองขุด' : selectedOrganization, owner_name: 'ข้อมูลตัวอย่าง (ออฟไลน์)' }
+        ];
+        renderParcelList();
+        updateParcelCount();
+
+        // Show error notification
+        showNotification('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังแสดงข้อมูลตัวอย่าง', 'error');
     }
-    
-    // Final fallback - use demo data but mark it clearly
-    console.log('📝 Using demo data as final fallback');
-    parcels = [
-        { parcel_cod: '02A001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '47-0-0', coordinates: '9.2774653641324,99.6308034154171' },
-        { parcel_cod: '02B001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '43845', coordinates: '9.27538969077421,99.6326572522743' },
-        { parcel_cod: '02C001', organization_name: 'อบต.ลำนาว', owner_name: 'ข้อมูลตัวอย่าง (ไม่ได้เชื่อมต่อฐานข้อมูล)', ryw: '29233', coordinates: '9.27763149696953,99.6330194589285' }
-    ];
-    
-    renderParcelList();
-    updateParcelCount();
-    showNotification('⚠️ ใช้ข้อมูลตัวอย่าง - ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'warning');
 }
 
 // Update parcel count display
@@ -339,7 +210,7 @@ function updateParcelCount(count = null) {
         const orgText = selectedOrganization === 'all' ? 'ทุก อบต.' : selectedOrganization;
         parcelCountSpan.textContent = `รายการ: ${displayCount} (${orgText})`;
     }
-    
+
     // Update dashboard statistics
     updateDashboardStats();
 }
@@ -683,17 +554,9 @@ async function editParcel(code) {
     try {
         console.log('📝 Editing parcel with code:', code);
         showLoading(true);
-        const response = await fetch(`${API_URL}/land_parcel/${code}`);
-        console.log('📡 API response status:', response.status);
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('✅ Parcel data received:', data);
-            openParcelModal(data);
-        } else {
-            console.log('❌ Failed to fetch parcel data, creating new with code:', code);
-            openParcelModal({ parcel_cod: code });
-        }
+        const data = await apiCall(`${API_URL}/land_parcel/${code}`);
+        console.log('✅ Parcel data received:', data);
+        openParcelModal(data);
     } catch (error) {
         console.error('❌ Error fetching parcel:', error);
         openParcelModal({ parcel_cod: code });
@@ -1276,40 +1139,20 @@ function refreshData() {
 // Initialize application
 async function initializeApp() {
     console.log('🚀 Starting Land Parcel Management System...');
-    
-    // Check authentication first
-    const selectedOrg = localStorage.getItem('selectedOrganization');
-    const recorderName = localStorage.getItem('recorderName');
-    const loginTime = localStorage.getItem('loginTime');
-    
-    if (!selectedOrg || !recorderName || !loginTime) {
-        console.log('🔒 No authentication found, redirecting to login...');
-        window.location.href = 'login.html';
-        return;
-    }
-    
-    // Check if session is still valid (24 hours)
-    const twentyFourHours = 24 * 60 * 60 * 1000;
-    if (Date.now() - parseInt(loginTime) > twentyFourHours) {
-        console.log('⏰ Session expired, redirecting to login...');
-        localStorage.clear();
-        window.location.href = 'login.html';
-        return;
-    }
-    
-    console.log('✅ Authentication valid, continuing...');
     showLoading(true);
     
     try {
-        // Update user info display
-        updateUserInfo(selectedOrg, recorderName);
-        
         // Load organizations first
         await loadOrganizations();
         
-        // Set organization from localStorage
-        selectedOrganization = selectedOrg;
-        selectOrganization(selectedOrganization);
+        // Set default organization (first one available or default)
+        if (organizations.length > 0) {
+            selectedOrganization = organizations[0].org_name;
+            selectOrganization(selectedOrganization);
+        } else {
+            selectedOrganization = 'อบต.ไชยคราม';
+            selectOrganization('all');
+        }
         
         console.log('✅ Application initialized successfully');
         showLoading(false);
@@ -1317,8 +1160,8 @@ async function initializeApp() {
         console.error('❌ Error initializing app:', error);
         showLoading(false);
         // Continue with basic functionality
-        selectedOrganization = selectedOrg;
-        selectOrganization(selectedOrganization);
+        selectedOrganization = 'อบต.ไชยคราม';
+        selectOrganization('all');
     }
 }
 
@@ -1745,79 +1588,382 @@ document.addEventListener('DOMContentLoaded', function() {
 // Initialize application
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 TDM Survey System Initializing...');
-    
+
     // Initialize UI components
     initializePWA();
-    loadOrganizations();
-    
-    // Set default view to dashboard
-    showDashboard();
-    
-    // Setup event listeners
     setupEventListeners();
-    
+
+    // Initialize the application
+    try {
+        initializeApp();
+    } catch (error) {
+        console.error('❌ Error during initialization:', error);
+        // Force hide loading overlay if there's an error
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
+    }
+
+    const parcelForm = document.getElementById('parcelForm');
+    if (parcelForm) {
+        parcelForm.onsubmit = async function (e) {
+            e.preventDefault();
+            showLoading(true);
+
+            // อัปเดตเวลาปัจจุบันเมื่อกดบันทึก
+            const currentTime = new Date().toISOString().slice(0, 16);
+            document.getElementById('timestamp').value = currentTime;
+
+            // ใช้ชื่อผู้บันทึกจาก localStorage หรือค่าเริ่มต้น
+            const recorderName = localStorage.getItem('recorderName') || localStorage.getItem('userEmail') || 'jobaom5@gmail.com';
+            document.getElementById('recorder').value = recorderName;
+
+            const formData = {
+                parcel_cod: document.getElementById('parcelCode').value,
+                owner_name: document.getElementById('ownerName').value,
+                ryw: document.getElementById('ryw').value,
+                assessed_value: document.getElementById('assessedValue').value,
+                village_number: document.getElementById('villageNumber').value,
+                land_type: document.getElementById('landType').value,
+                land_use: document.getElementById('landUse').value,
+                remarks: document.getElementById('remarks').value,
+                coordinates: document.getElementById('coordinates').value,
+                recorder: recorderName,
+                recorded_by: recorderName,
+                timestamp: currentTime,
+                organization_name: document.getElementById('organizationName').value || selectedOrganization || localStorage.getItem('selectedOrganization') || 'ไม่ระบุองค์กร'
+            };
+
+            try {
+                const result = await apiCall(`${API_URL}/land_parcel`, {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+
+                if (result.success) {
+                    if (result.offline) {
+                        // ข้อมูลถูกเก็บไว้สำหรับ sync ภายหลัง
+                        showNotification('💾 ข้อมูลถูกเก็บไว้แล้ว จะส่งเมื่อออนไลน์', 'info');
+                        alert(`ข้อมูลถูกเก็บไว้แล้ว\nจะส่งเมื่อมีการเชื่อมต่อ\nรหัสแปลง: ${formData.parcel_cod}`);
+                    } else {
+                        // บันทึกสำเร็จ online
+                        const savedTime = result.timestamp ?
+                            new Date(result.timestamp).toLocaleString('th-TH') :
+                            new Date().toLocaleString('th-TH');
+                        showNotification('✅ บันทึกข้อมูลสำเร็จ', 'success');
+                        alert(`บันทึกข้อมูลสำเร็จ\nเวลาที่บันทึก: ${savedTime}`);
+                    }
+                    closeParcelModal();
+                    loadParcels(); // Refresh the list
+                } else {
+                    throw new Error('Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving parcel:', error);
+                showNotification('❌ เกิดข้อผิดพลาดในการบันทึก', 'error');
+                alert('เกิดข้อผิดพลาดในการบันทึก\nกรุณาลองใหม่อีกครั้ง');
+            } finally {
+                showLoading(false);
+            }
+        };
+    }
+
+    // Add Organization Modal Functions
+    window.showAddOrgModal = function() {
+        document.getElementById('addOrgModal').style.display = 'block';
+        document.getElementById('newOrgName').value = '';
+        document.getElementById('newOrgCode').value = '';
+        document.getElementById('newOrgName').focus();
+    };
+
+    window.closeAddOrgModal = function() {
+        document.getElementById('addOrgModal').style.display = 'none';
+    };
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('addOrgModal');
+        if (event.target === modal) {
+            closeAddOrgModal();
+        }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeAddOrgModal();
+        }
+    });
+
+    window.addNewOrganization = async function() {
+        const orgName = document.getElementById('newOrgName').value.trim();
+        const orgCode = document.getElementById('newOrgCode').value.trim();
+
+        if (!orgName) {
+            alert('กรุณาใส่ชื่อองค์กร');
+            document.getElementById('newOrgName').focus();
+            return;
+        }
+
+        try {
+            const data = await apiCall(`${API_URL}/organizations`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    org_name: orgName,
+                    org_code: orgCode
+                })
+            });
+
+            if (data.success) {
+                closeAddOrgModal();
+                showNotification('เพิ่มองค์กรใหม่เรียบร้อยแล้ว', 'success');
+                await loadOrganizations();
+
+                // Auto select the new organization
+                const orgSelect = document.getElementById('organizationSelect');
+                orgSelect.value = orgName;
+                changeOrganization();
+            } else {
+                if (data.error && data.error.includes('duplicate')) {
+                    alert('องค์กรนี้มีอยู่ในระบบแล้ว');
+                } else {
+                    alert(data.error || 'เกิดข้อผิดพลาดในการเพิ่มองค์กร');
+                }
+            }
+        } catch (error) {
+            console.error('Error adding organization:', error);
+            alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
+        }
+    };
+
+    // Real-time search functionality
+    let searchTimeout;
+    let searchCache = new Map();
+
+    window.searchParcels = function() {
+        console.log('🔍 Search function called'); // Debug log
+
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        const clearBtn = document.getElementById('clearSearch');
+        const query = searchInput.value.trim();
+
+        console.log('🔍 Search query:', query); // Debug log
+
+        // Show/hide clear button
+        clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+
+        if (query.length < 1) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        // Clear previous timeout
+        clearTimeout(searchTimeout);
+
+        // Check cache first
+        const cacheKey = `${query}-${selectedOrganization}`;
+        if (searchCache.has(cacheKey)) {
+            console.log('🔍 Using cached results'); // Debug log
+            displaySearchResults(searchCache.get(cacheKey), query);
+            return;
+        }
+
+        // Show loading
+        searchResults.innerHTML = '<div class="search-loading"><i class="fas fa-spinner fa-spin"></i>กำลังค้นหา...</div>';
+        searchResults.style.display = 'block';
+
+        console.log('🔍 Starting search with timeout'); // Debug log
+
+        // Debounced search
+        searchTimeout = setTimeout(async () => {
+            try {
+                const orgParam = selectedOrganization === 'all' ? 'all' : selectedOrganization;
+                const searchUrl = `${API_URL}/search-parcels?q=${encodeURIComponent(query)}&org=${encodeURIComponent(orgParam)}`;
+
+                console.log('🔍 Search URL:', searchUrl); // Debug log
+
+                const results = await apiCall(searchUrl);
+
+                console.log('🔍 Search results:', results); // Debug log
+
+                // Cache results
+                searchCache.set(cacheKey, results);
+
+                displaySearchResults(results, query);
+            } catch (error) {
+                console.error('❌ Search error:', error);
+                searchResults.innerHTML = '<div class="search-no-results">เกิดข้อผิดพลาดในการค้นหา</div>';
+            }
+        }, 300);
+    };
+
+    function displaySearchResults(results, query) {
+        const searchResults = document.getElementById('searchResults');
+
+        if (results.length === 0) {
+            searchResults.innerHTML = '<div class="search-no-results">ไม่พบข้อมูลที่ค้นหา</div>';
+            searchResults.style.display = 'block';
+
+            // Show no results in main list too
+            const parcelListDiv = document.querySelector('.parcel-list');
+            if (parcelListDiv) {
+                parcelListDiv.innerHTML = '<div class="no-data">ไม่พบข้อมูลที่ค้นหา</div>';
+            }
+            updateParcelCount(0);
+            return;
+        }
+
+        console.log('🔍 Displaying search results:', results.length); // Debug log
+
+        // Update main parcel list with search results
+        renderParcelList(results);
+        updateParcelCount(results.length);
+
+        // Hide search dropdown after updating main list
+        searchResults.style.display = 'none';
+
+        // Optional: Show notification
+        showNotification(`พบ ${results.length} รายการที่ตรงกับการค้นหา "${query}"`, 'info');
+    }
+
+    function highlightText(text, query) {
+        if (!text || !query) return text || '';
+        const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+        return text.replace(regex, '<span class="highlight">$1</span>');
+    }
+
+    function escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    window.clearSearch = function() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('clearSearch').style.display = 'none';
+        searchCache.clear();
+
+        // Reload original parcel list
+        console.log('🔍 Clearing search, reloading original data'); // Debug log
+        loadParcels();
+    };
+
+    // Update parcel count display
+    function updateParcelCount(count) {
+        const parcelCountElement = document.getElementById('parcelCount');
+        if (parcelCountElement) {
+            parcelCountElement.textContent = `รายการ: ${count || 0}`;
+        }
+    }
+
+    // Show notification function
+    function showNotification(message, type = 'info', duration = 5000) {
+        // Remove existing notifications
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; font-size: 18px; cursor: pointer; margin-left: 10px;">×</button>
+        `;
+
+        // Add to page
+        document.body.appendChild(notification);
+
+        // Auto remove after duration
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, duration);
+    }
+
+    // Hide search results when clicking outside
+    document.addEventListener('click', function(e) {
+        const searchContainer = document.querySelector('.search-container');
+        if (searchContainer && !searchContainer.contains(e.target)) {
+            const sr = document.getElementById('searchResults');
+            if (sr) sr.style.display = 'none';
+        }
+    });
+
+    // Initialize the app
+    loadParcels();
+
+    // Set current timestamp on load
+    const timestampInput = document.getElementById('timestamp');
+    if (timestampInput) {
+        timestampInput.value = new Date().toISOString().slice(0, 16);
+    }
+
     console.log('✅ System initialized successfully');
 });
 
-// Setup event listeners
-function setupEventListeners() {
-    // Online/offline detection
-    window.addEventListener('online', () => {
-        updateConnectionStatus(true);
-        showNotification('🟢 กลับมาออนไลน์แล้ว', 'success');
-    });
-    
-    window.addEventListener('offline', () => {
-        updateConnectionStatus(false);
-        showNotification('🔴 ขาดการเชื่อมต่อ ทำงานแบบออฟไลน์', 'warning');
-    });
-}
-
-// Initialize PWA features
+// Initialize PWA functionality
 function initializePWA() {
-    // Register service worker
+    // Register service worker if available
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
+        const swPath = './sw.js';
+
+        navigator.serviceWorker.register(swPath)
             .then(registration => {
-                console.log('✅ Service Worker registered successfully:', registration.scope);
+                console.log('✅ Service Worker registered:', registration);
             })
             .catch(error => {
-                console.log('❌ Service Worker registration failed:', error);
+                console.error('❌ Service Worker registration failed:', error);
             });
     }
-    
-    // Enable install prompt
+
+    // Handle PWA install prompt
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
-        showInstallButton();
+        console.log('📱 PWA install prompt ready');
     });
-}
 
-function showInstallButton() {
-    // Add install button to UI
-    const installBtn = document.createElement('button');
-    installBtn.innerHTML = '<i class="fas fa-download"></i> ติดตั้งแอป';
-    installBtn.className = 'install-btn';
-    installBtn.onclick = installPWA;
-    
-    const header = document.querySelector('.header-content');
-    if (header && !document.querySelector('.install-btn')) {
-        header.appendChild(installBtn);
-    }
-}
-
-function installPWA() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-                console.log('User accepted the install prompt');
+    // Add install button functionality
+    const installBtn = document.getElementById('installBtn');
+    if (installBtn) {
+        installBtn.addEventListener('click', () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('✅ User accepted PWA install');
+                    } else {
+                        console.log('❌ User dismissed PWA install');
+                    }
+                    deferredPrompt = null;
+                });
             }
-            deferredPrompt = null;
         });
     }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Connection status monitoring
+    window.addEventListener('online', () => {
+        console.log('🌐 Connection restored');
+        updateConnectionStatus(true);
+        showNotification('✅ เชื่อมต่ออินเทอร์เน็ตแล้ว', 'success');
+    });
+
+    window.addEventListener('offline', () => {
+        console.log('📴 Connection lost');
+        updateConnectionStatus(false);
+        showNotification('⚠️ ไม่มีอินเทอร์เน็ต กำลังทำงานแบบออฟไลน์', 'warning');
+    });
+
+    // Initial connection status
+    updateConnectionStatus(navigator.onLine);
 }
 
 // Update connection status indicator
