@@ -156,10 +156,10 @@
     <script>
         // API Configuration - same as main app
         const API_ENDPOINTS = [
-            'https://tdmbackup.synology.me:8080/api',  // Direct HTTPS (primary)
-            'http://tdmbackup.synology.me:8080/api',   // Direct HTTP (fallback)
-            'https://tdmbackup.synology.me:8081/api',  // nginx port 8081
-            'https://tdmbackup.synology.me/api'        // nginx port 80
+            'https://tdmbackup.synology.me:8080',  // Direct HTTPS (primary)
+            'http://tdmbackup.synology.me:8080',   // Direct HTTP (fallback)
+            'https://tdmbackup.synology.me:8081',  // nginx port 8081
+            'https://tdmbackup.synology.me'        // nginx port 80
         ];
         
         // Update location and API info
@@ -200,12 +200,12 @@
             addResult(title, 'testing', '🔄 กำลังทดสอบการเชื่อมต่อ...');
             
             try {
-                console.log(`Testing: ${url}/${endpoint}`);
+                console.log(`Testing: ${url}/api/${endpoint}`);
                 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
                 
-                const response = await fetch(`${url}/${endpoint}`, {
+                const response = await fetch(`${url}/api/${endpoint}`, {
                     method: 'GET',
                     signal: controller.signal,
                     headers: {
@@ -298,7 +298,7 @@
                             'success',
                             `เชื่อมต่อฐานข้อมูลจริงได้สำเร็จ! มีข้อมูล ${result.data.length} รายการ`,
                             {
-                                working_endpoint: apiUrl + '/land_parcels',
+                                working_endpoint: apiUrl + '/api/land_parcels',
                                 total_records: result.data.length,
                                 sample_organizations: [...new Set(result.data.slice(0, 10).map(r => r.organization_name || r.org_name))],
                                 latest_records: result.data.slice(0, 2).map(r => ({
