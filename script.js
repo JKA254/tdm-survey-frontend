@@ -1773,11 +1773,52 @@ function setupEventListeners() {
     });
 }
 
-// Update connection status indicator
-function updateConnectionStatus(isOnline) {
-    const statusElement = document.getElementById('connection-status');
-    if (statusElement) {
-        if (isOnline) {
+// Initialize PWA features
+function initializePWA() {
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker registered successfully:', registration.scope);
+            })
+            .catch(error => {
+                console.log('❌ Service Worker registration failed:', error);
+            });
+    }
+    
+    // Enable install prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallButton();
+    });
+}
+
+function showInstallButton() {
+    // Add install button to UI
+    const installBtn = document.createElement('button');
+    installBtn.innerHTML = '<i class="fas fa-download"></i> ติดตั้งแอป';
+    installBtn.className = 'install-btn';
+    installBtn.onclick = installPWA;
+    
+    const header = document.querySelector('.header-content');
+    if (header && !document.querySelector('.install-btn')) {
+        header.appendChild(installBtn);
+    }
+}
+
+function installPWA() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+        });
+    }
+}
             statusElement.textContent = '🟢 ออนไลน์';
             statusElement.className = 'connection-status online';
         } else {
