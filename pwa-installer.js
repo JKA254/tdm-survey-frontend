@@ -315,7 +315,7 @@ class PWAInstaller {
         if ('serviceWorker' in navigator) {
             try {
                 console.log('🔧 Registering service worker...');
-                const registration = await navigator.serviceWorker.register('./sw.js');
+                const registration = await navigator.serviceWorker.register('/tdm-survey-frontend/sw.js');
                 
                 console.log('✅ Service Worker registered:', registration);
                 
@@ -350,7 +350,7 @@ class PWAInstaller {
         const updateBanner = document.createElement('div');
         updateBanner.innerHTML = `
             <div style="
-                position: fixed;
+                position:
                 top: 0;
                 left: 0;
                 right: 0;
