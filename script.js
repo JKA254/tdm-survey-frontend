@@ -1312,9 +1312,9 @@ async function initializeApp() {
     console.log('🚀 Starting Land Parcel Management System...');
     
     // Check authentication first
-    const selectedOrg = localStorage.getItem('selectedOrganization');
-    const recorderName = localStorage.getItem('recorderName');
-    const loginTime = localStorage.getItem('loginTime');
+    let selectedOrg = localStorage.getItem('selectedOrganization');
+    let recorderName = localStorage.getItem('recorderName');
+    let loginTime = localStorage.getItem('loginTime');
     
     if (!selectedOrg || !recorderName || !loginTime) {
         console.log('🔒 No authentication found');
@@ -1322,18 +1322,20 @@ async function initializeApp() {
         // For development/testing - auto setup with default values
         if (window.location.hostname.includes('github.io') || window.location.hostname === 'localhost') {
             console.log('🧪 Setting up test authentication...');
-            localStorage.setItem('selectedOrganization', 'อบต.ลำนาว');
-            localStorage.setItem('recorderName', 'ผู้ทดสอบระบบ');
-            localStorage.setItem('loginTime', Date.now().toString());
+            selectedOrg = 'อบต.ลำนาว';
+            recorderName = 'ผู้ทดสอบระบบ';
+            loginTime = Date.now().toString();
             
-            // Reload with authentication
-            window.location.reload();
+            localStorage.setItem('selectedOrganization', selectedOrg);
+            localStorage.setItem('recorderName', recorderName);
+            localStorage.setItem('loginTime', loginTime);
+            
+            // Continue execution with the set values
+        } else {
+            console.log('🔒 Redirecting to login...');
+            window.location.href = 'login.html';
             return;
         }
-        
-        console.log('🔒 Redirecting to login...');
-        window.location.href = 'login.html';
-        return;
     }
     
     // Check if session is still valid (24 hours)

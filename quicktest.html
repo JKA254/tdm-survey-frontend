@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Test - TDM Survey</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Quick Test - Force Load Real Data</h1>
+    
+    <button onclick="testDirectLoad()">🔧 Test Direct Data Load</button>
+    <button onclick="testMainAppFunction()">🎯 Test Main App Functions</button>
+    <button onclick="clearStorage()">🗑️ Clear Storage</button>
+    
+    <div id="results"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+            console.log(message);
+        }
+        
+        async function testDirectLoad() {
+            log('🔄 Testing direct data load...', 'info');
+            
+            try {
+                // Set up authentication like the main app
+                localStorage.setItem('selectedOrganization', 'อบต.ลำนาว');
+                localStorage.setItem('recorderName', 'ผู้ทดสอบระบบ');
+                localStorage.setItem('loginTime', Date.now().toString());
+                
+                // Test the hardcoded data
+                const testData = [
+                    {"id":1,"organization_name":"อบต.ลำนาว","parcel_cod":"02A001","owner_name":"นางสาว เอี้ยง เปียใหม่","ryw":"47-0-0","assessed_value":"150.00","coordinates":"9.2774653641324,99.6308034154171"},
+                    {"id":2,"organization_name":"อบต.ลำนาว","parcel_cod":"02A002","owner_name":"นาง หนูวิน เฟื่องฟู","ryw":"29234","assessed_value":"150.00","coordinates":"9.27829051497422,99.6326210024386"},
+                    {"id":3,"organization_name":"อบต.ลำนาว","parcel_cod":"02A003","owner_name":"นางสาว เสาวนิตย์ ชอบบุญ","ryw":"29233","assessed_value":"150.00","coordinates":"9.27763149696953,99.6330194589285"}
+                ];
+                
+                log(`✅ Test data ready: ${testData.length} records`, 'success');
+                log(`<pre>${JSON.stringify(testData, null, 2)}</pre>`, 'info');
+                
+                // Try to update the main page's parcel count
+                const parcelCountSpan = window.parent?.document?.getElementById('parcelCount') || 
+                                      document.getElementById('parcelCount');
+                                      
+                if (parcelCountSpan) {
+                    parcelCountSpan.textContent = testData.length;
+                    log(`✅ Updated parcel count to: ${testData.length}`, 'success');
+                } else {
+                    log('❌ Could not find parcelCount element', 'error');
+                }
+                
+                // Check if we can access main app functions
+                if (window.parent && window.parent.renderParcelList) {
+                    window.parent.parcels = testData;
+                    window.parent.renderParcelList();
+                    log('✅ Called main app renderParcelList()', 'success');
+                } else {
+                    log('❌ Could not access main app functions', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testMainAppFunction() {
+            log('🎯 Testing main app integration...', 'info');
+            
+            // Redirect to main app with forced data load
+            const mainAppUrl = 'https://jka254.github.io/tdm-survey-frontend/?force_data=true';
+            window.open(mainAppUrl, '_blank');
+            
+            log(`✅ Opening main app with force data flag`, 'success');
+        }
+        
+        function clearStorage() {
+            localStorage.clear();
+            log('🗑️ LocalStorage cleared', 'info');
+        }
+        
+        // Auto-run test
+        document.addEventListener('DOMContentLoaded', () => {
+            testDirectLoad();
+        });
+    </script>
+</body>
+</html>
