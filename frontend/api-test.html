@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - TDM Survey</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #4a5568;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+        
+        .info-box {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        
+        .status.success { background: #c6f6d5; color: #22543d; }
+        .status.error { background: #fed7d7; color: #742a2a; }
+        .status.testing { background: #fef5e7; color: #744210; }
+        
+        .btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+        }
+        
+        .btn.success { background: #48bb78; }
+        .btn.success:hover { background: #38a169; }
+        
+        .results {
+            margin-top: 30px;
+        }
+        
+        .result-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .result-item h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        
+        .data-preview {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .endpoint-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .endpoint {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .endpoint.success { border-color: #48bb78; background: #f0fff4; }
+        .endpoint.error { border-color: #f56565; background: #fff5f5; }
+        
+        .endpoint-url {
+            font-family: monospace;
+            font-size: 13px;
+            color: #4a5568;
+            flex: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 20px; margin: 10px; }
+            .endpoint { flex-direction: column; align-items: flex-start; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 TDM Survey API Tester</h1>
+        
+        <div class="info-box">
+            <h3>📍 ตำแหน่งปัจจุบัน:</h3>
+            <div id="currentLocation">กำลังโหลด...</div>
+            
+            <h3>🌐 API Configuration:</h3>
+            <div id="apiConfig">กำลังโหลด...</div>
+        </div>
+        
+        <div style="text-align: center;">
+            <button class="btn" onclick="testAllAPIs()">🧪 ทดสอบ API ทั้งหมด</button>
+            <button class="btn success" onclick="testDatabase()">📊 ทดสอบฐานข้อมูล</button>
+            <button class="btn" onclick="clearResults()">🗑️ ล้างผลลัพธ์</button>
+        </div>
+        
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        // API Configuration - same as main app
+        const API_ENDPOINTS = [
+            'https://tdmbackup.synology.me:8080/api',  // Direct HTTPS (primary)
+            'http://tdmbackup.synology.me:8080/api',   // Direct HTTP (fallback)
+            'https://tdmbackup.synology.me:8081/api',  // nginx port 8081
+            'https://tdmbackup.synology.me/api'        // nginx port 80
+        ];
+        
+        // Update location and API info
+        document.getElementById('currentLocation').innerHTML = `
+            <strong>Protocol:</strong> ${window.location.protocol}<br>
+            <strong>Host:</strong> ${window.location.hostname}<br>
+            <strong>Full URL:</strong> ${window.location.href}
+        `;
+        
+        document.getElementById('apiConfig').innerHTML = API_ENDPOINTS.map((url, i) => 
+            `<div><strong>Endpoint ${i+1}:</strong> ${url}</div>`
+        ).join('');
+        
+        const results = document.getElementById('results');
+        
+        function addResult(title, status, message, data = null) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result-item';
+            
+            let content = `
+                <h3>${title} <span class="status ${status}">${status.toUpperCase()}</span></h3>
+                <p>${message}</p>
+            `;
+            
+            if (data) {
+                content += `<div class="data-preview">${JSON.stringify(data, null, 2)}</div>`;
+            }
+            
+            resultDiv.innerHTML = content;
+            results.appendChild(resultDiv);
+            
+            // Scroll to latest result
+            resultDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        async function testEndpoint(url, endpoint) {
+            const title = `${endpoint} - ${url}`;
+            addResult(title, 'testing', '🔄 กำลังทดสอบการเชื่อมต่อ...');
+            
+            try {
+                console.log(`Testing: ${url}/${endpoint}`);
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                
+                const response = await fetch(`${url}/${endpoint}`, {
+                    method: 'GET',
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const dataCount = Array.isArray(data) ? data.length : 'N/A';
+                    
+                    addResult(
+                        title,
+                        'success',
+                        `✅ เชื่อมต่อสำเร็จ! Status: ${response.status} | Records: ${dataCount}`,
+                        Array.isArray(data) ? data.slice(0, 3) : data
+                    );
+                    return { success: true, data, count: dataCount };
+                } else {
+                    addResult(title, 'error', `❌ HTTP Error ${response.status}: ${response.statusText}`);
+                    return { success: false, error: `HTTP ${response.status}` };
+                }
+            } catch (error) {
+                let errorMsg = error.message;
+                if (error.name === 'AbortError') {
+                    errorMsg = 'Connection timeout (>15 seconds)';
+                } else if (errorMsg.includes('CORS')) {
+                    errorMsg = 'CORS Policy Blocked - Mixed Content Issue';
+                } else if (errorMsg.includes('Failed to fetch')) {
+                    errorMsg = 'Network Error - Server Unreachable';
+                }
+                
+                addResult(title, 'error', `❌ ${errorMsg}`);
+                return { success: false, error: errorMsg };
+            }
+        }
+        
+        async function testAllAPIs() {
+            results.innerHTML = '';
+            addResult('🚀 API Testing Started', 'testing', 'กำลังทดสอบ API endpoints ทั้งหมด...');
+            
+            const testEndpoints = ['health', 'organizations', 'land_parcels'];
+            let workingEndpoints = [];
+            
+            for (const apiUrl of API_ENDPOINTS) {
+                for (const endpoint of testEndpoints) {
+                    const result = await testEndpoint(apiUrl, endpoint);
+                    if (result.success) {
+                        workingEndpoints.push({ url: apiUrl, endpoint, data: result });
+                    }
+                    
+                    // Small delay between tests
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+            
+            // Summary
+            if (workingEndpoints.length > 0) {
+                addResult(
+                    '🎉 Summary', 
+                    'success',
+                    `พบ ${workingEndpoints.length} endpoints ที่ใช้งานได้จากทั้งหมด ${API_ENDPOINTS.length * testEndpoints.length} การทดสอบ`,
+                    workingEndpoints.map(e => ({ url: e.url, endpoint: e.endpoint, records: e.data.count }))
+                );
+            } else {
+                addResult('💥 Summary', 'error', 'ไม่พบ API endpoints ใดที่ใช้งานได้เลย');
+            }
+        }
+        
+        async function testDatabase() {
+            results.innerHTML = '';
+            addResult('📊 Database Test', 'testing', 'กำลังทดสอบการเชื่อมต่อฐานข้อมูล...');
+            
+            // Test land_parcels endpoint specifically for real data
+            for (const apiUrl of API_ENDPOINTS) {
+                const result = await testEndpoint(apiUrl, 'land_parcels');
+                if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0) {
+                    // Check if data looks real (not demo data)
+                    const firstRecord = result.data[0];
+                    const isRealData = firstRecord.owner_name && 
+                                      !firstRecord.owner_name.includes('ตัวอย่าง') &&
+                                      !firstRecord.owner_name.includes('demo');
+                    
+                    if (isRealData) {
+                        addResult(
+                            '🎉 Real Database Connection Found!',
+                            'success',
+                            `เชื่อมต่อฐานข้อมูลจริงได้สำเร็จ! มีข้อมูล ${result.data.length} รายการ`,
+                            {
+                                working_endpoint: apiUrl + '/land_parcels',
+                                total_records: result.data.length,
+                                sample_organizations: [...new Set(result.data.slice(0, 10).map(r => r.organization_name || r.org_name))],
+                                latest_records: result.data.slice(0, 2).map(r => ({
+                                    parcel_cod: r.parcel_cod,
+                                    organization: r.organization_name || r.org_name,
+                                    owner: r.owner_name,
+                                    timestamp: r.timestamp
+                                }))
+                            }
+                        );
+                        return; // Found real data, stop testing
+                    }
+                }
+            }
+            
+            addResult('⚠️ Database Test Result', 'error', 'ไม่พบการเชื่อมต่อฐานข้อมูลจริง หรือพบเฉพาะข้อมูลตัวอย่าง');
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
+        }
+        
+        // Auto-run basic test on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(testAllAPIs, 1000);
+        });
+    </script>
+</body>
+</html>
