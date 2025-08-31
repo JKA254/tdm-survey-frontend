@@ -1819,6 +1819,12 @@ function installPWA() {
         });
     }
 }
+
+// Update connection status indicator
+function updateConnectionStatus(isOnline) {
+    const statusElement = document.getElementById('connection-status');
+    if (statusElement) {
+        if (isOnline) {
             statusElement.textContent = '🟢 ออนไลน์';
             statusElement.className = 'connection-status online';
         } else {
