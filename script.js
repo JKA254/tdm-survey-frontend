@@ -8,9 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - Use direct API connection (temporary fix)
+    // GitHub Pages - Use HTTP fallback due to Mixed Content Policy
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me:8080/api'; // Direct API access
+        return 'http://tdmbackup.synology.me:8080/api'; // HTTP fallback for Mixed Content
     }
     
     // Other development environments
@@ -142,7 +142,7 @@ async function apiCall(url, options = {}) {
         throw error;
     }
 }
-}
+
 
 // Load organizations
 async function loadOrganizations() {
@@ -336,8 +336,8 @@ function updateParcelCount(count = null) {
     const parcelCountSpan = document.getElementById('parcelCount');
     if (parcelCountSpan) {
         const displayCount = count !== null ? count : parcels.length;
-        const orgText = selectedOrganization === 'all' ? 'ทุก อบต.' : selectedOrganization;
-        parcelCountSpan.textContent = `รายการ: ${displayCount} (${orgText})`;
+        parcelCountSpan.textContent = `${displayCount}`;
+        console.log('📊 Updated count display to:', displayCount);
     }
     
     // Update dashboard statistics
@@ -1310,6 +1310,10 @@ async function initializeApp() {
         // Set organization from localStorage
         selectedOrganization = selectedOrg;
         selectOrganization(selectedOrganization);
+        
+        // Load parcels immediately to show data
+        console.log('🔄 Loading parcels for display...');
+        await loadParcels();
         
         console.log('✅ Application initialized successfully');
         showLoading(false);
