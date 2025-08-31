@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Test</title>
+</head>
+<body>
+    <h1>🧪 Simple Data Test</h1>
+    <p>Parcel Count: <span id="count">Loading...</span></p>
+    <ul id="list"></ul>
+    
+    <script>
+        console.log('Simple test started');
+        
+        const testData = [
+            {"parcel_cod":"02A001","owner_name":"นางสาว เอี้ยง เปียใหม่","organization_name":"อบต.ลำนาว"},
+            {"parcel_cod":"02A002","owner_name":"นาง หนูวิน เฟื่องฟู","organization_name":"อบต.ลำนาว"},
+            {"parcel_cod":"02B035","owner_name":"นาย ปรัชญา ศรีสวัสดิ์","organization_name":"อบต.ลำนาว"}
+        ];
+        
+        document.getElementById('count').textContent = testData.length;
+        
+        const listEl = document.getElementById('list');
+        testData.forEach(parcel => {
+            const li = document.createElement('li');
+            li.textContent = `${parcel.parcel_cod} - ${parcel.owner_name}`;
+            listEl.appendChild(li);
+        });
+        
+        console.log('Simple test completed:', testData.length, 'records');
+    </script>
+</body>
+</html>
