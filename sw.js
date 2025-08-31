@@ -485,8 +485,8 @@ self.addEventListener('push', event => {
   if (event.data) {
     const options = {
       body: event.data.text(),
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/badge-72x72.png',
+      icon: './icons/tdm-icon-192x192.png',
+      badge: './icons/tdm-icon-72x72.png',
       vibrate: [100, 50, 100],
       data: {
         dateOfArrival: Date.now(),
