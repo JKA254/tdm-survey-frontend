@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - TDM Survey</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #00ff00; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; }
+        .success { color: #00ff00; }
+        .error { color: #ff4444; }
+        .warning { color: #ffaa00; }
+        pre { background: #2a2a2a; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 TDM Survey Debug Console</h1>
+    
+    <div class="section">
+        <h3>🌐 Environment Information</h3>
+        <div id="envInfo">Loading...</div>
+    </div>
+    
+    <div class="section">
+        <h3>🔑 Authentication Status</h3>
+        <div id="authInfo">Loading...</div>
+    </div>
+    
+    <div class="section">
+        <h3>📡 API Connectivity Test</h3>
+        <div id="apiTest">Loading...</div>
+        <button onclick="testAPI()">🔄 Re-test API</button>
+    </div>
+    
+    <div class="section">
+        <h3>📊 Data Loading Test</h3>
+        <div id="dataTest">Loading...</div>
+        <button onclick="testData()">🔄 Re-test Data</button>
+    </div>
+    
+    <div class="section">
+        <h3>🐛 Console Logs</h3>
+        <pre id="logs"></pre>
+    </div>
+
+    <script>
+        let logBuffer = [];
+        
+        // Capture console logs
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        console.log = function(...args) {
+            logBuffer.push(`[LOG] ${new Date().toISOString()}: ${args.join(' ')}`);
+            updateLogs();
+            originalConsoleLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            logBuffer.push(`[ERROR] ${new Date().toISOString()}: ${args.join(' ')}`);
+            updateLogs();
+            originalConsoleError.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            logBuffer.push(`[WARN] ${new Date().toISOString()}: ${args.join(' ')}`);
+            updateLogs();
+            originalConsoleWarn.apply(console, args);
+        };
+        
+        function updateLogs() {
+            document.getElementById('logs').textContent = logBuffer.slice(-20).join('\n');
+        }
+        
+        // Environment Info
+        function checkEnvironment() {
+            const info = {
+                hostname: window.location.hostname,
+                protocol: window.location.protocol,
+                port: window.location.port,
+                pathname: window.location.pathname,
+                userAgent: navigator.userAgent.substring(0, 100),
+                online: navigator.onLine
+            };
+            
+            document.getElementById('envInfo').innerHTML = `
+                <div class="success">Hostname: ${info.hostname}</div>
+                <div>Protocol: ${info.protocol}</div>
+                <div>Full URL: ${window.location.href}</div>
+                <div>Online: ${info.online ? '✅' : '❌'}</div>
+            `;
+        }
+        
+        // Authentication Info
+        function checkAuthentication() {
+            const selectedOrg = localStorage.getItem('selectedOrganization');
+            const recorderName = localStorage.getItem('recorderName');
+            const loginTime = localStorage.getItem('loginTime');
+            
+            document.getElementById('authInfo').innerHTML = `
+                <div class="${selectedOrg ? 'success' : 'error'}">Organization: ${selectedOrg || 'NOT SET'}</div>
+                <div class="${recorderName ? 'success' : 'error'}">Recorder: ${recorderName || 'NOT SET'}</div>
+                <div class="${loginTime ? 'success' : 'error'}">Login Time: ${loginTime ? new Date(parseInt(loginTime)).toLocaleString() : 'NOT SET'}</div>
+            `;
+        }
+        
+        // API Test
+        async function testAPI() {
+            document.getElementById('apiTest').innerHTML = 'Testing...';
+            
+            const endpoints = [
+                'http://tdmbackup.synology.me:8080/api/health',
+                'http://tdmbackup.synology.me:8080/api/land_parcels'
+            ];
+            
+            let results = [];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    console.log(`Testing endpoint: ${endpoint}`);
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        mode: 'cors'
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const count = Array.isArray(data) ? data.length : 'N/A';
+                        results.push(`<div class="success">✅ ${endpoint} - Status: ${response.status}, Records: ${count}</div>`);
+                    } else {
+                        results.push(`<div class="error">❌ ${endpoint} - HTTP ${response.status}</div>`);
+                    }
+                } catch (error) {
+                    results.push(`<div class="error">❌ ${endpoint} - Error: ${error.message}</div>`);
+                }
+            }
+            
+            document.getElementById('apiTest').innerHTML = results.join('');
+        }
+        
+        // Data Loading Test
+        async function testData() {
+            document.getElementById('dataTest').innerHTML = 'Testing data loading...';
+            
+            try {
+                // Test direct API call like the main app does
+                const API_URL = window.location.hostname.includes('github.io') 
+                    ? 'http://tdmbackup.synology.me:8080/api'
+                    : 'http://localhost:3000/api';
+                
+                console.log('API_URL configured as:', API_URL);
+                
+                const response = await fetch(`${API_URL}/land_parcels`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const parcels = await response.json();
+                    console.log('Loaded parcels:', parcels.length);
+                    
+                    const sampleData = parcels.slice(0, 3).map(p => 
+                        `${p.parcel_cod} - ${p.owner_name} (${p.organization_name})`
+                    ).join('<br>');
+                    
+                    document.getElementById('dataTest').innerHTML = `
+                        <div class="success">✅ Successfully loaded ${parcels.length} parcels</div>
+                        <div class="success">🏢 Organizations: ${[...new Set(parcels.map(p => p.organization_name))].join(', ')}</div>
+                        <div class="warning">📋 Sample data:</div>
+                        <div>${sampleData}</div>
+                    `;
+                } else {
+                    document.getElementById('dataTest').innerHTML = `
+                        <div class="error">❌ HTTP Error ${response.status}: ${response.statusText}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('dataTest').innerHTML = `
+                    <div class="error">❌ Network Error: ${error.message}</div>
+                    <div class="warning">This might be due to Mixed Content Policy blocking HTTP calls from HTTPS pages</div>
+                `;
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Debug page loaded');
+            checkEnvironment();
+            checkAuthentication();
+            testAPI();
+            testData();
+        });
+    </script>
+</body>
+</html>
