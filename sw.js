@@ -1,22 +1,22 @@
 const CACHE_NAME = 'tdm-land-management-v1.1.0';
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = './offline.html';
 const DATA_CACHE_NAME = 'tdm-data-cache-v1.1.0';
 
 // รายการไฟล์ที่ต้อง cache สำหรับใช้งาน offline
 const STATIC_CACHE_URLS = [
-  '/',
-  '/index.html',
-  '/login.html',
-  '/offline.html',
-  '/script.js',
-  '/styles.css',
-  '/manifest.json',
-  '/icons/tdm-icon-192x192.png',
-  '/icons/tdm-icon-512x512.png',
+  './',
+  './index.html',
+  './login.html',
+  './offline.html',
+  './script.js',
+  './styles.css',
+  './manifest.json',
+  './icons/tdm-icon-192x192.png',
+  './icons/tdm-icon-512x512.png',
   // Local fallbacks for external libraries
-  '/libs/font-awesome.css',
-  '/libs/leaflet.css', 
-  '/libs/leaflet.js'
+  './libs/font-awesome.css',
+  './libs/leaflet.css', 
+  './libs/leaflet.js'
 ];
 
 // External CDN resources with local fallbacks

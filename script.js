@@ -8,10 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - Try HTTPS first, fallback to demo data if Mixed Content blocked
+    // GitHub Pages - Use direct API connection (temporary fix)
     if (window.location.hostname.includes('github.io')) {
-        // We'll try both HTTPS and HTTP, but expect Mixed Content issues
-        return 'https://tdmbackup.synology.me/api'; // Try HTTPS first
+        return 'https://tdmbackup.synology.me:8080/api'; // Direct API access
     }
     
     // Other development environments
@@ -243,6 +242,7 @@ async function loadParcels() {
         // Try multiple API endpoints for better reliability
         const endpoints = [
             `${API_URL}/land_parcels${orgParam}`,
+            `https://tdmbackup.synology.me:8081/api/land_parcels${orgParam}`, // nginx port 8081
             `http://tdmbackup.synology.me:8080/api/land_parcels${orgParam}`, // Direct HTTP fallback
             `https://tdmbackup.synology.me/api/land_parcels${orgParam}` // HTTPS fallback
         ];
@@ -1771,6 +1771,53 @@ function setupEventListeners() {
         updateConnectionStatus(false);
         showNotification('🔴 ขาดการเชื่อมต่อ ทำงานแบบออฟไลน์', 'warning');
     });
+}
+
+// Initialize PWA features
+function initializePWA() {
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+                console.log('✅ Service Worker registered successfully:', registration.scope);
+            })
+            .catch(error => {
+                console.log('❌ Service Worker registration failed:', error);
+            });
+    }
+    
+    // Enable install prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallButton();
+    });
+}
+
+function showInstallButton() {
+    // Add install button to UI
+    const installBtn = document.createElement('button');
+    installBtn.innerHTML = '<i class="fas fa-download"></i> ติดตั้งแอป';
+    installBtn.className = 'install-btn';
+    installBtn.onclick = installPWA;
+    
+    const header = document.querySelector('.header-content');
+    if (header && !document.querySelector('.install-btn')) {
+        header.appendChild(installBtn);
+    }
+}
+
+function installPWA() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+            }
+            deferredPrompt = null;
+        });
+    }
 }
 
 // Update connection status indicator

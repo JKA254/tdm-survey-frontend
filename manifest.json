@@ -2,7 +2,7 @@
   "name": "TDM สำรวจภาคสนาม",
   "short_name": "TDM Survey",
   "description": "TECHNIC D MAP - ระบบจัดการข้อมูลแปลงที่ดิน สำหรับการสำรวจภาคสนาม",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#ff7f00",
