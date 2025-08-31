@@ -8,9 +8,9 @@ const API_URL = (() => {
         return 'http://localhost:3000/api';
     }
     
-    // GitHub Pages - Use HTTPS API via nginx reverse proxy
+    // GitHub Pages - Use direct API connection (temporary fix)
     if (window.location.hostname.includes('github.io')) {
-        return 'https://tdmbackup.synology.me/api'; // HTTPS via nginx reverse proxy
+        return 'https://tdmbackup.synology.me:8080/api'; // Direct API access
     }
     
     // Other development environments
@@ -242,6 +242,7 @@ async function loadParcels() {
         // Try multiple API endpoints for better reliability
         const endpoints = [
             `${API_URL}/land_parcels${orgParam}`,
+            `https://tdmbackup.synology.me:8081/api/land_parcels${orgParam}`, // nginx port 8081
             `http://tdmbackup.synology.me:8080/api/land_parcels${orgParam}`, // Direct HTTP fallback
             `https://tdmbackup.synology.me/api/land_parcels${orgParam}` // HTTPS fallback
         ];
