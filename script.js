@@ -12,7 +12,7 @@ const API_URL = (() => {
     if (window.location.hostname.includes('github.io')) {
         // Use Synology NAS backend with SQL database
         const nasDomain = 'tdmbackup.synology.me'; // เปลี่ยนเป็น QuickConnect domain ของคุณ
-        return `http://${nasDomain}:8080/api`;
+        return `https://${nasDomain}:8080/api`;
     }
 
     // Synology NAS environments (QuickConnect or direct IP)
@@ -67,7 +67,7 @@ async function apiCall(url, options = {}) {
         
         // Check if this was served from cache (offline mode)
         if (data.offline) {
-            showNotification('💾 ข้อมูลถูกเก็บไว้ จะส่งเมื่อออนไลน์', 'info');
+            if (typeof showNotification === 'function') showNotification('💾 ข้อมูลถูกเก็บไว้ จะส่งเมื่อออนไลน์', 'info');
         }
         
         return data;
@@ -100,7 +100,7 @@ async function loadOrganizations() {
             { org_name: 'อบต.สามโคก', parcel_count: 0 }
         ];
         updateOrganizationSelectors();
-        showNotification('⚠️ ใช้ข้อมูลแบบออฟไลน์', 'warning');
+    if (typeof showNotification === 'function') showNotification('⚠️ ใช้ข้อมูลแบบออฟไลน์', 'warning');
     }
 }
 
@@ -197,8 +197,13 @@ async function loadParcels() {
         renderParcelList();
         updateParcelCount();
 
-        // Show error notification
-        showNotification('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังแสดงข้อมูลตัวอย่าง', 'error');
+    // Show error notification
+    if (typeof showNotification === 'function') showNotification('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กำลังแสดงข้อมูลตัวอย่าง', 'error');
+
+// Minimal showNotification stub to prevent ReferenceError
+function showNotification(msg, type) {
+    console.log(`[${type||'info'}] ${msg}`);
+}
     }
 }
 
