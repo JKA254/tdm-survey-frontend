@@ -1283,7 +1283,21 @@ async function initializeApp() {
     const loginTime = localStorage.getItem('loginTime');
     
     if (!selectedOrg || !recorderName || !loginTime) {
-        console.log('🔒 No authentication found, redirecting to login...');
+        console.log('🔒 No authentication found');
+        
+        // For development/testing - auto setup with default values
+        if (window.location.hostname.includes('github.io') || window.location.hostname === 'localhost') {
+            console.log('🧪 Setting up test authentication...');
+            localStorage.setItem('selectedOrganization', 'อบต.ลำนาว');
+            localStorage.setItem('recorderName', 'ผู้ทดสอบระบบ');
+            localStorage.setItem('loginTime', Date.now().toString());
+            
+            // Reload with authentication
+            window.location.reload();
+            return;
+        }
+        
+        console.log('🔒 Redirecting to login...');
         window.location.href = 'login.html';
         return;
     }
